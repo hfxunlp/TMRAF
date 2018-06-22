@@ -31,6 +31,10 @@ if [ -d "$ROOTDIR/trunk/libs/libssl/" ] ; then
 	cp -fRv "$ROOTDIR/trunk/libs/libssl/" "$DESTDIR/trunk/libs/"
 fi
 
+if [ -d "$ROOTDIR/trunk/libc/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/libc/" "$DESTDIR/trunk/"
+fi
+
 if [ -d "$ROOTDIR/trunk/linux-3.4.x/" ] ; then
 	cp -fRv "$ROOTDIR/trunk/linux-3.4.x/" "$DESTDIR/trunk/"
 fi
