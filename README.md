@@ -1,7 +1,7 @@
 # TMRAF
 Tweaked MediaTek Router Firmware Based on ASUS
 
-提供部分型号固件(commit 8ec3a10)下载，仅供测试，下载地址如下:
+提供部分型号固件(commit e6f4533)下载，仅供测试，下载地址如下:
 
 链接:https://pan.baidu.com/s/1jJTvhPW 密码:ekw7
 
