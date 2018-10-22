@@ -7,8 +7,8 @@ git checkout .
 git pull
 
 cd ../$pname
-#git checkout .
-#git pull
+git checkout .
+git pull
 chmod a+x scripts/*.sh
 bash scripts/install_Opt.sh
 
