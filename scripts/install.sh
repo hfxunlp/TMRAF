@@ -29,7 +29,7 @@ if [ -d "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" ] ; then
 fi
 
 if [ -d "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" ] ; then
-	cp -fRv "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" "$DESTDIR/user/busybox/busybox-1.24.x/scripts/"
+	cp -fRv "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" "$DESTDIR/trunk/user/busybox/busybox-1.24.x/scripts/"
 fi
 
 echo "-------------COPY-END---------------"
