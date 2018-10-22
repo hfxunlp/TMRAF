@@ -18,7 +18,9 @@ if [ -d "$ROOTDIR/trunk/user/" ] ; then
 	rm -fr "$DESTDIR/trunk/user/openvpn/openvpn-2.4.x/"
 	rm -fr "$DESTDIR/trunk/user/nfsd/nfs-utils-1.2.3/"
 	rm -fr "$DESTDIR/trunk/user/wpa_supplicant/"
-	rm -fr "$DESTDIR/trunk/user/dnsmasq/dnsmasq-2.7x/"
+	rm -fr "$DESTDIR/trunk/user/dnsmasq/"
+	rm -fr "$DESTDIR/trunk/libs/libxml2/"
+	rm -fr "$DESTDIR/trunk/libs/libcurl/"
 
 	cp -fRv "$ROOTDIR/trunk/user/" "$DESTDIR/trunk/"
 fi
@@ -29,6 +31,14 @@ fi
 
 if [ -d "$ROOTDIR/trunk/libs/libssl/" ] ; then
 	cp -fRv "$ROOTDIR/trunk/libs/libssl/" "$DESTDIR/trunk/libs/"
+fi
+
+if [ -d "$ROOTDIR/trunk/libs/libxml2/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/libs/libxml2/" "$DESTDIR/trunk/libs/"
+fi
+
+if [ -d "$ROOTDIR/trunk/libs/libcurl/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/libs/libcurl/" "$DESTDIR/trunk/libs/"
 fi
 
 if [ -d "$ROOTDIR/trunk/libc/" ] ; then
@@ -45,6 +55,14 @@ fi
 
 if [ -f "$ROOTDIR/trunk/versions.inc" ] ; then
 	cp -fv "$ROOTDIR/trunk/versions.inc" "$DESTDIR/trunk/"
+fi
+
+if [ -d "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" "$DESTDIR/trunk/tools/"
+fi
+
+if [ -d "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" "$DESTDIR/user/busybox/busybox-1.24.x/scripts/"
 fi
 
 echo "-------------COPY-END---------------"

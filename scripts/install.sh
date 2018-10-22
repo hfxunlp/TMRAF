@@ -24,4 +24,12 @@ if [ -d "$ROOTDIR/trunk/configs/" ] ; then
 	cp -fRv "$ROOTDIR/trunk/configs/" "$DESTDIR/trunk/"
 fi
 
+if [ -d "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" "$DESTDIR/trunk/tools/"
+fi
+
+if [ -d "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" "$DESTDIR/user/busybox/busybox-1.24.x/scripts/"
+fi
+
 echo "-------------COPY-END---------------"
