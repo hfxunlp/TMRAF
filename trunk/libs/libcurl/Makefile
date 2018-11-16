@@ -1,4 +1,4 @@
-SRC_NAME=curl-7.61.x
+SRC_NAME=curl-7.62.x
 
 all: config_test
 	$(MAKE) -C $(SRC_NAME)
