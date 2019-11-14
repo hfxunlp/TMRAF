@@ -52,7 +52,7 @@ CFLAGS := -D__GNUC__ -D__ppc__ -msoft-float -fno-builtin -mcpu=604 -mlongcall -D
 LDFLAGS := -nostdlib -Wl,-i -Wl,-X
 INCLUDE_FLAG := -I
 C_DEBUGFLAG := -g
-C_OPTFLAG := -O2
+C_OPTFLAG := -O3
 COMPILE_ONLY_FLAG := -c
 OBJ_EXTENSION := .o
 CC_OBJ_OUTPUT = -o $@

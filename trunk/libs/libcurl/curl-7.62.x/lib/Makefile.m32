@@ -92,7 +92,7 @@ CURL_RANLIB := $(CROSSPREFIX)ranlib
 endif
 
 CC = $(CURL_CC)
-CFLAGS = $(CURL_CFLAG_EXTRAS) -g -O2 -Wall -W
+CFLAGS = $(CURL_CFLAG_EXTRAS) -g -O3 -Wall -W
 CFLAGS += -fno-strict-aliasing
 # comment LDFLAGS below to keep debug info
 LDFLAGS = $(CURL_LDFLAG_EXTRAS) $(CURL_LDFLAG_EXTRAS_DLL) -s

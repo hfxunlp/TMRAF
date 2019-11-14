@@ -123,7 +123,7 @@ DB = NDEBUG
 endif
 # Optimization: -O<n> or debugging: -g
 ifeq ($(DB),NDEBUG)
-  OPT = -O2
+  OPT = -O3
   OBJDIR = release
 else
   OPT = -g
