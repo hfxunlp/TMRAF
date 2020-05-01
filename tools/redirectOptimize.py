@@ -30,10 +30,9 @@ def rfile(fname, old, new):
 	cache = []
 	rwt = False
 	try:
-		with open(fname) as f:
+		with open(fname, "rb") as f:
 			for line in f:
-				tmp = line.strip("\r\n")
-				tmp = tmp.decode("utf-8")
+				tmp = line.decode("utf-8").strip("\r\n")
 				if tmp.find("redirectOptimize.py") != -1:
 					tmp = rebuildcmd(tmp, old, new)
 					rwt = True
@@ -50,7 +49,7 @@ def rfile(fname, old, new):
 		cache.append("")
 		cache = "\n".join(cache).encode("utf-8")
 		print("edit:" + fname)
-		with open(fname, "w") as f:
+		with open(fname, "wb") as f:
 			f.write(cache)
 	return rwt
 
@@ -59,7 +58,7 @@ def walkdir(dname, old, new):
 	for root, dirs, files in os.walk(dname):
 		for file in files:
 			#if file == "Makefile":
-			if file.lower().find("makefile") != -1:
+			if file.lower().find("makefile") >= 0:
 				rp = rfile(os.path.join(root, file), old, new)
 				if rp:
 					count += 1
@@ -67,4 +66,4 @@ def walkdir(dname, old, new):
 		print(str(count)+" files edited")
 
 if __name__ == "__main__":
-	walkdir(sys.argv[1].decode("utf-8"), sys.argv[2].decode("utf-8"), sys.argv[3].decode("utf-8"))
+	walkdir(sys.argv[1], sys.argv[2], sys.argv[3])

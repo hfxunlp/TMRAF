@@ -6,7 +6,7 @@ CFLAGS += -ffunction-sections -fdata-sections
 LDFLAGS += -Wl,--gc-sections
 
 all: config_test
-	pypy /media/Storage/workspace/router/TMRAF/tools/redirectOptimize.py /media/Storage/workspace/router/rt-n56u/trunk/user/e2fsprogs O2 O3
+	python3 /media/Storage/workspace/router/TMRAF/tools/redirectOptimize.py /media/Storage/workspace/router/rt-n56u/trunk/user/e2fsprogs O2 O3
 	$(MAKE) -C $(SRC_NAME)
 
 config_test:

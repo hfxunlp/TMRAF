@@ -14,10 +14,11 @@ echo "-------------COPY-FILES---------------"
 
 if [ -d "$ROOTDIR/trunk/user/" ] ; then
 
-	# cleaning before bump openvpn to 2.4.5, nfs-utils to 2.3.1, wpa_supplicant to 2.6, dnsmasq to 2.80, libxml2 to 2.9.8, libcurl to 7.62.0.
+	# cleaning before bump openvpn to 2.4.5, nfs-utils to 2.4.3, wpa_supplicant to 2.6, dnsmasq to 2.81, libxml2 to 2.9.10, libcurl to 7.70.0, dropbear to 2019.78.
 	rm -fr "$DESTDIR/trunk/user/openvpn/openvpn-2.4.x/"
 	rm -fr "$DESTDIR/trunk/user/nfsd/nfs-utils-1.2.3/"
 	rm -fr "$DESTDIR/trunk/user/wpa_supplicant/"
+	rm -fr "$DESTDIR/trunk/user/dropbear/dropbear-201X.XX/"
 	rm -fr "$DESTDIR/trunk/user/dnsmasq/"
 	rm -fr "$DESTDIR/trunk/libs/libxml2/"
 	rm -fr "$DESTDIR/trunk/libs/libcurl/"
@@ -57,8 +58,8 @@ if [ -f "$ROOTDIR/trunk/versions.inc" ] ; then
 	cp -fv "$ROOTDIR/trunk/versions.inc" "$DESTDIR/trunk/"
 fi
 
-if [ -d "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" ] ; then
-	cp -fRv "$ROOTDIR/trunk/tools/mksquash_xz-4.0/" "$DESTDIR/trunk/tools/"
+if [ -d "$ROOTDIR/trunk/tools/" ] ; then
+	cp -fRv "$ROOTDIR/trunk/tools/" "$DESTDIR/trunk/"
 fi
 
 if [ -d "$ROOTDIR/trunk/user/busybox/busybox-1.24.x/scripts/kconfig/" ] ; then
