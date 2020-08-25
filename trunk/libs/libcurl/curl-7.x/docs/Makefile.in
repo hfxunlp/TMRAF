@@ -316,6 +316,7 @@ HAVE_LDAP_SSL = @HAVE_LDAP_SSL@
 HAVE_LIBZ = @HAVE_LIBZ@
 HAVE_OPENSSL_SRP = @HAVE_OPENSSL_SRP@
 HAVE_PROTO_BSDSOCKET_H = @HAVE_PROTO_BSDSOCKET_H@
+HAVE_ZSTD = @HAVE_ZSTD@
 IDN_ENABLED = @IDN_ENABLED@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -327,6 +328,7 @@ LCOV = @LCOV@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBCURL_LIBS = @LIBCURL_LIBS@
+LIBCURL_NO_SHARED = @LIBCURL_NO_SHARED@
 LIBMETALINK_CPPFLAGS = @LIBMETALINK_CPPFLAGS@
 LIBMETALINK_LDFLAGS = @LIBMETALINK_LDFLAGS@
 LIBMETALINK_LIBS = @LIBMETALINK_LIBS@
@@ -484,10 +486,12 @@ EXTRA_DIST = \
  CIPHERS.md                                     \
  CMakeLists.txt                                 \
  CODE_OF_CONDUCT.md                             \
+ CODE_REVIEW.md                                 \
  CODE_STYLE.md                                  \
  CONTRIBUTE.md                                  \
  CURL-DISABLE.md                                \
  DEPRECATE.md                                   \
+ DYNBUF.md                                      \
  ESNI.md                                        \
  EXPERIMENTAL.md                                \
  FAQ                                            \
@@ -506,6 +510,7 @@ EXTRA_DIST = \
  LICENSE-MIXING.md                              \
  MAIL-ETIQUETTE                                 \
  MQTT.md                                        \
+ options-in-versions                            \
  PARALLEL-TRANSFERS.md                          \
  README.md                                      \
  RELEASE-PROCEDURE.md                           \
@@ -517,7 +522,7 @@ EXTRA_DIST = \
  THANKS                                         \
  TODO                                           \
  TheArtOfHttpScripting                          \
- VERSIONS
+ VERSIONS.md
 
 MAN2HTML = roffit $< >$@
 SUFFIXES = .1 .html .pdf

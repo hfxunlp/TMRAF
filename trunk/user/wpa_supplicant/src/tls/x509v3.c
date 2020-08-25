@@ -274,13 +274,12 @@ static int x509_parse_public_key(const u8 *buf, size_t len,
 		 */
 	}
 	os_free(cert->public_key);
-	cert->public_key = os_malloc(hdr.length - 1);
+	cert->public_key = os_memdup(pos + 1, hdr.length - 1);
 	if (cert->public_key == NULL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to allocate memory for "
 			   "public key");
 		return -1;
 	}
-	os_memcpy(cert->public_key, pos + 1, hdr.length - 1);
 	cert->public_key_len = hdr.length - 1;
 	wpa_hexdump(MSG_MSGDUMP, "X509: subjectPublicKey",
 		    cert->public_key, cert->public_key_len);
@@ -533,13 +532,49 @@ void x509_name_string(struct x509_name *name, char *buf, size_t len)
 	}
 
 done:
+	if (pos < end)
+		*pos = '\0';
 	end[-1] = '\0';
+}
+
+
+static int parse_uint2(const char *pos, size_t len)
+{
+	char buf[3];
+	int ret;
+
+	if (len < 2)
+		return -1;
+	buf[0] = pos[0];
+	buf[1] = pos[1];
+	buf[2] = 0x00;
+	if (sscanf(buf, "%2d", &ret) != 1)
+		return -1;
+	return ret;
+}
+
+
+static int parse_uint4(const char *pos, size_t len)
+{
+	char buf[5];
+	int ret;
+
+	if (len < 4)
+		return -1;
+	buf[0] = pos[0];
+	buf[1] = pos[1];
+	buf[2] = pos[2];
+	buf[3] = pos[3];
+	buf[4] = 0x00;
+	if (sscanf(buf, "%4d", &ret) != 1)
+		return -1;
+	return ret;
 }
 
 
 int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag, os_time_t *val)
 {
-	const char *pos;
+	const char *pos, *end;
 	int year, month, day, hour, min, sec;
 
 	/*
@@ -553,6 +588,7 @@ int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag, os_time_t *val)
 	 */
 
 	pos = (const char *) buf;
+	end = pos + len;
 
 	switch (asn1_tag) {
 	case ASN1_TAG_UTCTIME:
@@ -561,7 +597,8 @@ int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag, os_time_t *val)
 					  "UTCTime format", buf, len);
 			return -1;
 		}
-		if (sscanf(pos, "%02d", &year) != 1) {
+		year = parse_uint2(pos, end - pos);
+		if (year < 0) {
 			wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse "
 					  "UTCTime year", buf, len);
 			return -1;
@@ -578,7 +615,8 @@ int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag, os_time_t *val)
 					  "GeneralizedTime format", buf, len);
 			return -1;
 		}
-		if (sscanf(pos, "%04d", &year) != 1) {
+		year = parse_uint4(pos, end - pos);
+		if (year < 0) {
 			wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse "
 					  "GeneralizedTime year", buf, len);
 			return -1;
@@ -591,35 +629,40 @@ int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag, os_time_t *val)
 		return -1;
 	}
 
-	if (sscanf(pos, "%02d", &month) != 1) {
+	month = parse_uint2(pos, end - pos);
+	if (month < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
 				  "(month)", buf, len);
 		return -1;
 	}
 	pos += 2;
 
-	if (sscanf(pos, "%02d", &day) != 1) {
+	day = parse_uint2(pos, end - pos);
+	if (day < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
 				  "(day)", buf, len);
 		return -1;
 	}
 	pos += 2;
 
-	if (sscanf(pos, "%02d", &hour) != 1) {
+	hour = parse_uint2(pos, end - pos);
+	if (hour < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
 				  "(hour)", buf, len);
 		return -1;
 	}
 	pos += 2;
 
-	if (sscanf(pos, "%02d", &min) != 1) {
+	min = parse_uint2(pos, end - pos);
+	if (min < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
 				  "(min)", buf, len);
 		return -1;
 	}
 	pos += 2;
 
-	if (sscanf(pos, "%02d", &sec) != 1) {
+	sec = parse_uint2(pos, end - pos);
+	if (sec < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
 				  "(sec)", buf, len);
 		return -1;
@@ -772,6 +815,7 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 	struct asn1_hdr hdr;
 	unsigned long value;
 	size_t left;
+	const u8 *end_seq;
 
 	/*
 	 * BasicConstraints ::= SEQUENCE {
@@ -793,6 +837,7 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 	if (hdr.length == 0)
 		return 0;
 
+	end_seq = hdr.payload + hdr.length;
 	if (asn1_get_next(hdr.payload, hdr.length, &hdr) < 0 ||
 	    hdr.class != ASN1_CLASS_UNIVERSAL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to parse "
@@ -801,22 +846,16 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 	}
 
 	if (hdr.tag == ASN1_TAG_BOOLEAN) {
-		if (hdr.length != 1) {
-			wpa_printf(MSG_DEBUG, "X509: Unexpected "
-				   "Boolean length (%u) in BasicConstraints",
-				   hdr.length);
-			return -1;
-		}
 		cert->ca = hdr.payload[0];
 
-		if (hdr.length == pos + len - hdr.payload) {
+		pos = hdr.payload + hdr.length;
+		if (pos >= end_seq) {
+			/* No optional pathLenConstraint */
 			wpa_printf(MSG_DEBUG, "X509: BasicConstraints - cA=%d",
 				   cert->ca);
 			return 0;
 		}
-
-		if (asn1_get_next(hdr.payload + hdr.length, len - hdr.length,
-				  &hdr) < 0 ||
+		if (asn1_get_next(pos, end_seq - pos, &hdr) < 0 ||
 		    hdr.class != ASN1_CLASS_UNIVERSAL) {
 			wpa_printf(MSG_DEBUG, "X509: Failed to parse "
 				   "BasicConstraints");
@@ -925,10 +964,9 @@ static int x509_parse_alt_name_ip(struct x509_name *name,
 	/* iPAddress OCTET STRING */
 	wpa_hexdump(MSG_MSGDUMP, "X509: altName - iPAddress", pos, len);
 	os_free(name->ip);
-	name->ip = os_malloc(len);
+	name->ip = os_memdup(pos, len);
 	if (name->ip == NULL)
 		return -1;
-	os_memcpy(name->ip, pos, len);
 	name->ip_len = len;
 	return 0;
 }
@@ -1263,11 +1301,6 @@ static int x509_parse_extension(struct x509_certificate *cert,
 	}
 
 	if (hdr.tag == ASN1_TAG_BOOLEAN) {
-		if (hdr.length != 1) {
-			wpa_printf(MSG_DEBUG, "X509: Unexpected "
-				   "Boolean length (%u)", hdr.length);
-			return -1;
-		}
 		critical_ext = hdr.payload[0];
 		pos = hdr.payload;
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
@@ -1700,14 +1733,13 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 		return NULL;
 	}
 	os_free(cert->sign_value);
-	cert->sign_value = os_malloc(hdr.length - 1);
+	cert->sign_value = os_memdup(pos + 1, hdr.length - 1);
 	if (cert->sign_value == NULL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to allocate memory for "
 			   "signatureValue");
 		x509_certificate_free(cert);
 		return NULL;
 	}
-	os_memcpy(cert->sign_value, pos + 1, hdr.length - 1);
 	cert->sign_value_len = hdr.length - 1;
 	wpa_hexdump(MSG_MSGDUMP, "X509: signature",
 		    cert->sign_value, cert->sign_value_len);
@@ -2039,7 +2071,7 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 
 	for (cert = chain, idx = 0; cert; cert = cert->next, idx++) {
 		cert->issuer_trusted = 0;
-		x509_name_string(&cert->subject, buf, sizeof(buf)); 
+		x509_name_string(&cert->subject, buf, sizeof(buf));
 		wpa_printf(MSG_DEBUG, "X509: %lu: %s", idx, buf);
 
 		if (chain_trusted)
@@ -2063,11 +2095,11 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 				wpa_printf(MSG_DEBUG, "X509: Certificate "
 					   "chain issuer name mismatch");
 				x509_name_string(&cert->issuer, buf,
-						 sizeof(buf)); 
+						 sizeof(buf));
 				wpa_printf(MSG_DEBUG, "X509: cert issuer: %s",
 					   buf);
 				x509_name_string(&cert->next->subject, buf,
-						 sizeof(buf)); 
+						 sizeof(buf));
 				wpa_printf(MSG_DEBUG, "X509: next cert "
 					   "subject: %s", buf);
 				*reason = X509_VALIDATE_CERTIFICATE_UNKNOWN;

@@ -434,6 +434,9 @@
 /* if zlib is available */
 #undef HAVE_LIBZ
 
+/* Define to 1 if you have the `zstd' library (-lzstd). */
+#undef HAVE_LIBZSTD
+
 /* Define to 1 if you have the <linux/tcp.h> header file. */
 #undef HAVE_LINUX_TCP_H
 
@@ -551,6 +554,9 @@
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
+
+/* Define to 1 if you have the `quiche_conn_set_qlog_fd' function. */
+#undef HAVE_QUICHE_CONN_SET_QLOG_FD
 
 /* Define to 1 if you have the <quiche.h> header file. */
 #undef HAVE_QUICHE_H
@@ -690,6 +696,9 @@
 /* Define to 1 if you have the timeval struct. */
 #undef HAVE_STRUCT_TIMEVAL
 
+/* Define to 1 if suseconds_t is an available type. */
+#undef HAVE_SUSECONDS_T
+
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #undef HAVE_SYS_FILIO_H
 
@@ -792,6 +801,9 @@
 /* Define to 1 if you have the `wolfSSLv3_client_method' function. */
 #undef HAVE_WOLFSSLV3_CLIENT_METHOD
 
+/* if you have wolfSSL_DES_ecb_encrypt */
+#undef HAVE_WOLFSSL_DES_ECB_ENCRYPT
+
 /* Define to 1 if you have the `wolfSSL_get_peer_certificate' function. */
 #undef HAVE_WOLFSSL_GET_PEER_CERTIFICATE
 
@@ -812,6 +824,12 @@
 
 /* if you have the zlib.h header file */
 #undef HAVE_ZLIB_H
+
+/* if libzstd is in use */
+#undef HAVE_ZSTD
+
+/* Define to 1 if you have the <zstd.h> header file. */
+#undef HAVE_ZSTD_H
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR

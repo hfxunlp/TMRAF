@@ -522,6 +522,11 @@ push @cfgarr, '#';
 # and do not support quotes around values for some unknown reason.
 if ($sshdid =~ /OpenSSH-Windows/) {
     my $username_lc = lc $username;
+    if (exists $ENV{USERDOMAIN}) {
+        my $userdomain_lc = lc $ENV{USERDOMAIN};
+        $username_lc = "$userdomain_lc\\$username_lc";
+    }
+    $username_lc =~ s/ /\?/g; # replace space with ?
     push @cfgarr, "DenyUsers !$username_lc";
     push @cfgarr, "AllowUsers $username_lc";
 } else {
@@ -1120,7 +1125,7 @@ if ($sshdid =~ /OpenSSH-Windows/) {
     # Put an "exec" in front of the command so that the child process
     # keeps this child's process ID by being tied to the spawned shell.
     exec("exec $cmd") || die "Can't exec() $cmd: $!";
-    # exec() will create a new process, but ties the existance of the
+    # exec() will create a new process, but ties the existence of the
     # new process to the parent waiting perl.exe and sh.exe processes.
 
     # exec() should never return back here to this process. We protect

@@ -428,11 +428,17 @@
 /* Define to 1 if you have the <libssh2.h> header file. */
 #cmakedefine HAVE_LIBSSH2_H 1
 
+/* Define to 1 if you have the <libssh/libssh.h> header file. */
+#cmakedefine HAVE_LIBSSH_LIBSSH_H 1
+
 /* if zlib is available */
 #cmakedefine HAVE_LIBZ 1
 
 /* if brotli is available */
 #cmakedefine HAVE_BROTLI 1
+
+/* if zstd is available */
+#cmakedefine HAVE_ZSTD 1
 
 /* if your compiler supports LL */
 #cmakedefine HAVE_LL 1
@@ -969,6 +975,9 @@ ${SIZEOF_TIME_T_CODE}
 /* if WolfSSL is enabled */
 #cmakedefine USE_WOLFSSL 1
 
+/* if libSSH is in use */
+#cmakedefine USE_LIBSSH 1
+
 /* if libSSH2 is in use */
 #cmakedefine USE_LIBSSH2 1
 
@@ -990,8 +999,23 @@ ${SIZEOF_TIME_T_CODE}
 /* to enable NGHTTP2  */
 #cmakedefine USE_NGHTTP2 1
 
+/* to enable NGTCP2 */
+#cmakedefine USE_NGTCP2 1
+
+/* to enable NGHTTP3  */
+#cmakedefine USE_NGHTTP3 1
+
+/* to enable quiche */
+#cmakedefine USE_QUICHE 1
+
+/* Define to 1 if you have the quiche_conn_set_qlog_fd function. */
+#cmakedefine HAVE_QUICHE_CONN_SET_QLOG_FD 1
+
 /* if Unix domain sockets are enabled  */
 #cmakedefine USE_UNIX_SOCKETS
+
+/* to enable alt-svc */
+#cmakedefine USE_ALTSVC 1
 
 /* Define to 1 if you are building a Windows target with large file support. */
 #cmakedefine USE_WIN32_LARGE_FILES 1

@@ -35,6 +35,7 @@ man_MANS =                                      \
   CURLINFO_CONTENT_LENGTH_UPLOAD_T.3            \
   CURLINFO_CONTENT_TYPE.3                       \
   CURLINFO_COOKIELIST.3                         \
+  CURLINFO_EFFECTIVE_METHOD.3                   \
   CURLINFO_EFFECTIVE_URL.3                      \
   CURLINFO_FILETIME.3                           \
   CURLINFO_FILETIME_T.3                         \
@@ -198,6 +199,7 @@ man_MANS =                                      \
   CURLOPT_IOCTLFUNCTION.3                       \
   CURLOPT_IPRESOLVE.3                           \
   CURLOPT_ISSUERCERT.3                          \
+  CURLOPT_ISSUERCERT_BLOB.3                     \
   CURLOPT_KEEP_SENDING_ON_ERROR.3               \
   CURLOPT_KEYPASSWD.3                           \
   CURLOPT_KRBLEVEL.3                            \
@@ -257,11 +259,15 @@ man_MANS =                                      \
   CURLOPT_PROXY_CAPATH.3                        \
   CURLOPT_PROXY_CRLFILE.3                       \
   CURLOPT_PROXY_KEYPASSWD.3                     \
+  CURLOPT_PROXY_ISSUERCERT.3                    \
+  CURLOPT_PROXY_ISSUERCERT_BLOB.3               \
   CURLOPT_PROXY_PINNEDPUBLICKEY.3               \
   CURLOPT_PROXY_SERVICE_NAME.3                  \
   CURLOPT_PROXY_SSLCERT.3                       \
+  CURLOPT_PROXY_SSLCERT_BLOB.3                  \
   CURLOPT_PROXY_SSLCERTTYPE.3                   \
   CURLOPT_PROXY_SSLKEY.3                        \
+  CURLOPT_PROXY_SSLKEY_BLOB.3                   \
   CURLOPT_PROXY_SSLKEYTYPE.3                    \
   CURLOPT_PROXY_SSLVERSION.3                    \
   CURLOPT_PROXY_SSL_CIPHER_LIST.3               \
@@ -313,10 +319,12 @@ man_MANS =                                      \
   CURLOPT_SSH_PRIVATE_KEYFILE.3                 \
   CURLOPT_SSH_PUBLIC_KEYFILE.3                  \
   CURLOPT_SSLCERT.3                             \
+  CURLOPT_SSLCERT_BLOB.3                        \
   CURLOPT_SSLCERTTYPE.3                         \
   CURLOPT_SSLENGINE.3                           \
   CURLOPT_SSLENGINE_DEFAULT.3                   \
   CURLOPT_SSLKEY.3                              \
+  CURLOPT_SSLKEY_BLOB.3                         \
   CURLOPT_SSLKEYTYPE.3                          \
   CURLOPT_SSLVERSION.3                          \
   CURLOPT_SSL_CIPHER_LIST.3                     \

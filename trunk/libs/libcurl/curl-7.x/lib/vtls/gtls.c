@@ -235,7 +235,7 @@ static CURLcode handshake(struct connectdata *conn,
 
       what = Curl_socket_check(readfd, CURL_SOCKET_BAD, writefd,
                                nonblocking?0:
-                               timeout_ms?(time_t)timeout_ms:1000);
+                               timeout_ms?timeout_ms:1000);
       if(what < 0) {
         /* fatal error */
         failf(data, "select/poll on SSL socket, errno: %d", SOCKERRNO);
@@ -399,8 +399,15 @@ gtls_connect_step1(struct connectdata *conn,
 #endif
   const char *prioritylist;
   const char *err = NULL;
+#ifndef CURL_DISABLE_PROXY
   const char * const hostname = SSL_IS_PROXY() ? conn->http_proxy.host.name :
     conn->host.name;
+  long * const certverifyresult = SSL_IS_PROXY() ?
+    &data->set.proxy_ssl.certverifyresult : &data->set.ssl.certverifyresult;
+#else
+  const char * const hostname = conn->host.name;
+  long * const certverifyresult = &data->set.ssl.certverifyresult;
+#endif
 
   if(connssl->state == ssl_connection_complete)
     /* to make us tolerant against being called more than once for the
@@ -409,6 +416,9 @@ gtls_connect_step1(struct connectdata *conn,
 
   if(!gtls_inited)
     Curl_gtls_init();
+
+  /* Initialize certverifyresult to OK */
+  *certverifyresult = 0;
 
   if(SSL_CONN_CONFIG(version) == CURL_SSLVERSION_SSLv2) {
     failf(data, "GnuTLS does not support SSLv2");
@@ -458,8 +468,10 @@ gtls_connect_step1(struct connectdata *conn,
     if(rc < 0) {
       infof(data, "error reading ca cert file %s (%s)\n",
             SSL_CONN_CONFIG(CAfile), gnutls_strerror(rc));
-      if(SSL_CONN_CONFIG(verifypeer))
+      if(SSL_CONN_CONFIG(verifypeer)) {
+        *certverifyresult = rc;
         return CURLE_SSL_CACERT_BADFILE;
+      }
     }
     else
       infof(data, "found %d certificates in %s\n", rc,
@@ -474,8 +486,10 @@ gtls_connect_step1(struct connectdata *conn,
     if(rc < 0) {
       infof(data, "error reading ca cert file %s (%s)\n",
             SSL_CONN_CONFIG(CApath), gnutls_strerror(rc));
-      if(SSL_CONN_CONFIG(verifypeer))
+      if(SSL_CONN_CONFIG(verifypeer)) {
+        *certverifyresult = rc;
         return CURLE_SSL_CACERT_BADFILE;
+      }
     }
     else
       infof(data, "found %d certificates in %s\n",
@@ -611,8 +625,11 @@ gtls_connect_step1(struct connectdata *conn,
     gnutls_datum_t protocols[2];
 
 #ifdef USE_NGHTTP2
-    if(data->set.httpversion >= CURL_HTTP_VERSION_2 &&
-       (!SSL_IS_PROXY() || !conn->bits.tunnel_proxy)) {
+    if(data->set.httpversion >= CURL_HTTP_VERSION_2
+#ifndef CURL_DISABLE_PROXY
+       && (!SSL_IS_PROXY() || !conn->bits.tunnel_proxy)
+#endif
+       ) {
       protocols[cur].data = (unsigned char *)NGHTTP2_PROTO_VERSION_ID;
       protocols[cur].size = NGHTTP2_PROTO_VERSION_ID_LEN;
       cur++;
@@ -685,12 +702,15 @@ gtls_connect_step1(struct connectdata *conn,
     }
   }
 
+#ifndef CURL_DISABLE_PROXY
   if(conn->proxy_ssl[sockindex].use) {
     transport_ptr = conn->proxy_ssl[sockindex].backend->session;
     gnutls_transport_push = Curl_gtls_push_ssl;
     gnutls_transport_pull = Curl_gtls_pull_ssl;
   }
-  else {
+  else
+#endif
+  {
     /* file descriptor for the socket */
     transport_ptr = &conn->sock[sockindex];
     gnutls_transport_push = Curl_gtls_push;
@@ -819,8 +839,15 @@ gtls_connect_step3(struct connectdata *conn,
   unsigned int bits;
   gnutls_protocol_t version = gnutls_protocol_get_version(session);
 #endif
+#ifndef CURL_DISABLE_PROXY
   const char * const hostname = SSL_IS_PROXY() ? conn->http_proxy.host.name :
     conn->host.name;
+  long * const certverifyresult = SSL_IS_PROXY() ?
+    &data->set.proxy_ssl.certverifyresult : &data->set.ssl.certverifyresult;
+#else
+  const char * const hostname = conn->host.name;
+  long * const certverifyresult = &data->set.ssl.certverifyresult;
+#endif
 
   /* the name of the cipher suite used, e.g. ECDHE_RSA_AES_256_GCM_SHA384. */
   ptr = gnutls_cipher_suite_get_name(gnutls_kx_get(session),
@@ -852,6 +879,7 @@ gtls_connect_step3(struct connectdata *conn,
       else {
 #endif
         failf(data, "failed to get server cert");
+        *certverifyresult = GNUTLS_E_NO_CERTIFICATE_FOUND;
         return CURLE_PEER_FAILED_VERIFICATION;
 #ifdef USE_TLS_SRP
       }
@@ -888,8 +916,11 @@ gtls_connect_step3(struct connectdata *conn,
     rc = gnutls_certificate_verify_peers2(session, &verify_status);
     if(rc < 0) {
       failf(data, "server cert verify failed: %d", rc);
+      *certverifyresult = rc;
       return CURLE_SSL_CONNECT_ERROR;
     }
+
+    *certverifyresult = verify_status;
 
     /* verify_status is a bitmask of gnutls_certificate_status bits */
     if(verify_status & GNUTLS_CERT_INVALID) {
@@ -1097,8 +1128,12 @@ gtls_connect_step3(struct connectdata *conn,
   }
 #endif
   if(!rc) {
+#ifndef CURL_DISABLE_PROXY
     const char * const dispname = SSL_IS_PROXY() ?
       conn->http_proxy.host.dispname : conn->host.dispname;
+#else
+    const char * const dispname = conn->host.dispname;
+#endif
 
     if(SSL_CONN_CONFIG(verifyhost)) {
       failf(data, "SSL: certificate subject name (%s) does not match "
@@ -1119,6 +1154,7 @@ gtls_connect_step3(struct connectdata *conn,
   if(certclock == (time_t)-1) {
     if(SSL_CONN_CONFIG(verifypeer)) {
       failf(data, "server cert expiration date verify failed");
+      *certverifyresult = GNUTLS_CERT_EXPIRED;
       gnutls_x509_crt_deinit(x509_cert);
       return CURLE_SSL_CONNECT_ERROR;
     }
@@ -1129,6 +1165,7 @@ gtls_connect_step3(struct connectdata *conn,
     if(certclock < time(NULL)) {
       if(SSL_CONN_CONFIG(verifypeer)) {
         failf(data, "server certificate expiration date has passed.");
+        *certverifyresult = GNUTLS_CERT_EXPIRED;
         gnutls_x509_crt_deinit(x509_cert);
         return CURLE_PEER_FAILED_VERIFICATION;
       }
@@ -1144,6 +1181,7 @@ gtls_connect_step3(struct connectdata *conn,
   if(certclock == (time_t)-1) {
     if(SSL_CONN_CONFIG(verifypeer)) {
       failf(data, "server cert activation date verify failed");
+      *certverifyresult = GNUTLS_CERT_NOT_ACTIVATED;
       gnutls_x509_crt_deinit(x509_cert);
       return CURLE_SSL_CONNECT_ERROR;
     }
@@ -1154,6 +1192,7 @@ gtls_connect_step3(struct connectdata *conn,
     if(certclock > time(NULL)) {
       if(SSL_CONN_CONFIG(verifypeer)) {
         failf(data, "server certificate not activated yet.");
+        *certverifyresult = GNUTLS_CERT_NOT_ACTIVATED;
         gnutls_x509_crt_deinit(x509_cert);
         return CURLE_PEER_FAILED_VERIFICATION;
       }
@@ -1197,20 +1236,23 @@ gtls_connect_step3(struct connectdata *conn,
 
 
   rc = gnutls_x509_crt_get_dn2(x509_cert, &certfields);
-  if(rc != 0)
-    return CURLE_OUT_OF_MEMORY;
-  infof(data, "\t subject: %s\n", certfields.data);
+  if(rc)
+    infof(data, "Failed to get certificate name\n");
+  else {
+    infof(data, "\t subject: %s\n", certfields.data);
 
-  certclock = gnutls_x509_crt_get_activation_time(x509_cert);
-  showtime(data, "start date", certclock);
+    certclock = gnutls_x509_crt_get_activation_time(x509_cert);
+    showtime(data, "start date", certclock);
 
-  certclock = gnutls_x509_crt_get_expiration_time(x509_cert);
-  showtime(data, "expire date", certclock);
+    certclock = gnutls_x509_crt_get_expiration_time(x509_cert);
+    showtime(data, "expire date", certclock);
+  }
 
   rc = gnutls_x509_crt_get_issuer_dn2(x509_cert, &certfields);
-  if(rc != 0)
-    return CURLE_OUT_OF_MEMORY;
-  infof(data, "\t issuer: %s\n", certfields.data);
+  if(rc)
+    infof(data, "Failed to get certificate issuer\n");
+  else
+    infof(data, "\t issuer: %s\n", certfields.data);
 #endif
 
   gnutls_x509_crt_deinit(x509_cert);
@@ -1362,10 +1404,13 @@ static bool Curl_gtls_data_pending(const struct connectdata *conn,
      0 != gnutls_record_check_pending(backend->session))
     res = TRUE;
 
+#ifndef CURL_DISABLE_PROXY
   connssl = &conn->proxy_ssl[connindex];
+  backend = connssl->backend;
   if(backend->session &&
      0 != gnutls_record_check_pending(backend->session))
     res = TRUE;
+#endif
 
   return res;
 }
@@ -1414,7 +1459,9 @@ static void close_one(struct ssl_connect_data *connssl)
 static void Curl_gtls_close(struct connectdata *conn, int sockindex)
 {
   close_one(&conn->ssl[sockindex]);
+#ifndef CURL_DISABLE_PROXY
   close_one(&conn->proxy_ssl[sockindex]);
+#endif
 }
 
 /*
