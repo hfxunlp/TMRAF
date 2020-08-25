@@ -22,7 +22,7 @@ config_test:
 	fi )
 
 configure:
-	( cd $(SRC_NAME) ; autoconf; autoheader; \
+	( cd $(SRC_NAME) ; \
 	./configure \
 		--prefix=/usr \
 		--disable-lastlog \
