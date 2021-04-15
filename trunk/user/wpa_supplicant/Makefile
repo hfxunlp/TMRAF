@@ -1,6 +1,5 @@
 SRC_NAME=wpa_supplicant
 
-
 all:
 	cp -f $(SRC_NAME)/.config.def $(SRC_NAME)/.config
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_EAP_PEAP),y)

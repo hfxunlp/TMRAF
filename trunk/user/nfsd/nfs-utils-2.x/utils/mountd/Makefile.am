@@ -12,9 +12,8 @@ RPCPREFIX	= rpc.
 KPREFIX		= @kprefix@
 sbin_PROGRAMS	= mountd
 
-noinst_HEADERS = fsloc.h
-mountd_SOURCES = mountd.c mount_dispatch.c auth.c rmtab.c cache.c \
-		 svc_run.c fsloc.c v4root.c mountd.h
+mountd_SOURCES = mountd.c mount_dispatch.c rmtab.c \
+		 svc_run.c mountd.h
 mountd_LDADD = ../../support/export/libexport.a \
 	       ../../support/nfs/libnfs.la \
 	       ../../support/misc/libmisc.a \
@@ -46,7 +45,6 @@ uninstall-hook:
 	    rm -f $(RPCPREFIX)$(KPREFIX)$$p$(EXEEXT) ;\
 	  done)
 
-
 # XXX This makes some assumptions about what automake does.
 # XXX But there is no install-man-hook or install-man-local.
 install-man: install-man8 install-man-links
@@ -66,4 +64,3 @@ uninstall-man-links:
 	    inst=`echo $$m | sed -e 's/man$$/8/'`; \
 	    rm -f $(RPCPREFIX)$$inst ; \
 	  done)
-

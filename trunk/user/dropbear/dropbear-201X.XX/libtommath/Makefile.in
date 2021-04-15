@@ -86,7 +86,7 @@ profiled_single:
 	rm -f *.o ltmtest
 	$(CC) $(CFLAGS) -fbranch-probabilities -DTESTING -c mpi.c -o mpi.o
 	$(AR) $(ARFLAGS) $(LIBNAME) mpi.o
-	$(RANLIB) $(LIBNAME)	
+	$(RANLIB) $(LIBNAME)
 
 install: $(LIBNAME)
 	install -d $(DESTDIR)$(LIBPATH)

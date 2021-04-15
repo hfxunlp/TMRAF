@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2020 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ void *whine_malloc(size_t size)
   return ret;
 }
 
-int sockaddr_isequal(union mysockaddr *s1, union mysockaddr *s2)
+int sockaddr_isequal(const union mysockaddr *s1, const union mysockaddr *s2)
 {
   if (s1->sa.sa_family == s2->sa.sa_family)
     { 

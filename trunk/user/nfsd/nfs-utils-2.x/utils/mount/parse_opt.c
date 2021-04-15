@@ -414,19 +414,25 @@ po_found_t po_contains(struct mount_options *options, char *keyword)
  * @options: pointer to mount options
  * @prefix: pointer to prefix to match against a keyword
  * @keyword: pointer to a C string containing the option keyword if found
+ * @n: number of instances to skip, so '0' returns the first.
  *
  * On success, *keyword contains the pointer of the matching option's keyword.
  */
 po_found_t po_contains_prefix(struct mount_options *options,
-								const char *prefix, char **keyword)
+			      const char *prefix, char **keyword, int n)
 {
 	struct mount_option *option;
 
 	if (options && prefix) {
 		for (option = options->head; option; option = option->next)
 			if (strncmp(option->keyword, prefix, strlen(prefix)) == 0) {
-				*keyword = option->keyword;
-				return PO_FOUND;
+				if (n > 0) {
+					n -= 1;
+				} else {
+					if (keyword)
+						*keyword = option->keyword;
+					return PO_FOUND;
+				}
 			}
 	}
 

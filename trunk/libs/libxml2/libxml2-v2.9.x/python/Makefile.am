@@ -38,7 +38,7 @@ libxml2.py: $(srcdir)/libxml.py libxml2class.py
 dist_python_DATA = \
 	drv_libxml2.py \
 	libxml2.py
-	
+
 CLEANFILES = *.pyc
 
 MAINTAINERCLEANFILES = libxml2.py libxml2class.*

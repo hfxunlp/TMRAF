@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2020 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -332,55 +332,6 @@ unsigned char *skip_section(unsigned char *ansp, int count, struct dns_header *h
 
   return ansp;
 }
-
-/* CRC the question section. This is used to safely detect query 
-   retransmission and to detect answers to questions we didn't ask, which 
-   might be poisoning attacks. Note that we decode the name rather 
-   than CRC the raw bytes, since replies might be compressed differently. 
-   We ignore case in the names for the same reason. Return all-ones
-   if there is not question section. */
-#ifndef HAVE_DNSSEC
-unsigned int questions_crc(struct dns_header *header, size_t plen, char *name)
-{
-  int q;
-  unsigned int crc = 0xffffffff;
-  unsigned char *p1, *p = (unsigned char *)(header+1);
-
-  for (q = ntohs(header->qdcount); q != 0; q--) 
-    {
-      if (!extract_name(header, plen, &p, name, 1, 4))
-	return crc; /* bad packet */
-      
-      for (p1 = (unsigned char *)name; *p1; p1++)
-	{
-	  int i = 8;
-	  char c = *p1;
-
-	  if (c >= 'A' && c <= 'Z')
-	    c += 'a' - 'A';
-
-	  crc ^= c << 24;
-	  while (i--)
-	    crc = crc & 0x80000000 ? (crc << 1) ^ 0x04c11db7 : crc << 1;
-	}
-      
-      /* CRC the class and type as well */
-      for (p1 = p; p1 < p+4; p1++)
-	{
-	  int i = 8;
-	  crc ^= *p1 << 24;
-	  while (i--)
-	    crc = crc & 0x80000000 ? (crc << 1) ^ 0x04c11db7 : crc << 1;
-	}
-
-      p += 4;
-      if (!CHECK_LEN(header, p, plen, 0))
-	return crc; /* bad packet */
-    }
-
-  return crc;
-}
-#endif
 
 size_t resize_packet(struct dns_header *header, size_t plen, unsigned char *pheader, size_t hlen)
 {
@@ -1066,30 +1017,33 @@ int check_for_local_domain(char *name, time_t now)
   return 0;
 }
 
-/* Is the packet a reply with the answer address equal to addr?
-   If so mung is into an NXDOMAIN reply and also put that information
-   in the cache. */
-int check_for_bogus_wildcard(struct dns_header *header, size_t qlen, char *name, 
-			     struct bogus_addr *baddr, time_t now)
+static int check_bad_address(struct dns_header *header, size_t qlen, struct bogus_addr *baddr, char *name, unsigned long *ttlp)
 {
   unsigned char *p;
   int i, qtype, qclass, rdlen;
   unsigned long ttl;
   struct bogus_addr *baddrp;
-
+  struct in_addr addr;
+  
   /* skip over questions */
   if (!(p = skip_questions(header, qlen)))
     return 0; /* bad packet */
 
   for (i = ntohs(header->ancount); i != 0; i--)
     {
-      if (!extract_name(header, qlen, &p, name, 1, 10))
+      if (name && !extract_name(header, qlen, &p, name, 1, 10))
 	return 0; /* bad packet */
-  
+
+      if (!name && !(p = skip_name(p, header, qlen, 10)))
+	return 0;
+      
       GETSHORT(qtype, p); 
       GETSHORT(qclass, p);
       GETLONG(ttl, p);
       GETSHORT(rdlen, p);
+
+      if (ttlp)
+	*ttlp = ttl;
       
       if (qclass == C_IN && qtype == T_A)
 	{
@@ -1097,16 +1051,12 @@ int check_for_bogus_wildcard(struct dns_header *header, size_t qlen, char *name,
 	    return 0;
 	  
 	  for (baddrp = baddr; baddrp; baddrp = baddrp->next)
-	    if (memcmp(&baddrp->addr, p, INADDRSZ) == 0)
-	      {
-		/* Found a bogus address. Insert that info here, since there no SOA record
-		   to get the ttl from in the normal processing */
-		cache_start_insert();
-		cache_insert(name, NULL, C_IN, now, ttl, F_IPV4 | F_FORWARD | F_NEG | F_NXDOMAIN);
-		cache_end_insert();
-		
+	    {
+	      memcpy(&addr, p, INADDRSZ);
+	      
+	      if ((addr.s_addr & baddrp->mask.s_addr) == baddrp->addr.s_addr)
 		return 1;
-	      }
+	    }
 	}
       
       if (!ADD_RDLEN(header, p, qlen, rdlen))
@@ -1116,43 +1066,31 @@ int check_for_bogus_wildcard(struct dns_header *header, size_t qlen, char *name,
   return 0;
 }
 
-int check_for_ignored_address(struct dns_header *header, size_t qlen, struct bogus_addr *baddr)
+/* Is the packet a reply with the answer address equal to addr?
+   If so mung is into an NXDOMAIN reply and also put that information
+   in the cache. */
+int check_for_bogus_wildcard(struct dns_header *header, size_t qlen, char *name, time_t now)
 {
-  unsigned char *p;
-  int i, qtype, qclass, rdlen;
-  struct bogus_addr *baddrp;
+  unsigned long ttl;
 
-  /* skip over questions */
-  if (!(p = skip_questions(header, qlen)))
-    return 0; /* bad packet */
-
-  for (i = ntohs(header->ancount); i != 0; i--)
+  if (check_bad_address(header, qlen, daemon->bogus_addr, name, &ttl))
     {
-      if (!(p = skip_name(p, header, qlen, 10)))
-	return 0; /* bad packet */
-      
-      GETSHORT(qtype, p); 
-      GETSHORT(qclass, p);
-      p += 4; /* TTL */
-      GETSHORT(rdlen, p);
-      
-      if (qclass == C_IN && qtype == T_A)
-	{
-	  if (!CHECK_LEN(header, p, qlen, INADDRSZ))
-	    return 0;
-	  
-	  for (baddrp = baddr; baddrp; baddrp = baddrp->next)
-	    if (memcmp(&baddrp->addr, p, INADDRSZ) == 0)
-	      return 1;
-	}
-      
-      if (!ADD_RDLEN(header, p, qlen, rdlen))
-	return 0;
+      /* Found a bogus address. Insert that info here, since there no SOA record
+	 to get the ttl from in the normal processing */
+      cache_start_insert();
+      cache_insert(name, NULL, C_IN, now, ttl, F_IPV4 | F_FORWARD | F_NEG | F_NXDOMAIN);
+      cache_end_insert();
+
+      return 1;
     }
-  
+
   return 0;
 }
 
+int check_for_ignored_address(struct dns_header *header, size_t qlen)
+{
+  return check_bad_address(header, qlen, daemon->ignore_addr, NULL, NULL);
+}
 
 int add_resource_record(struct dns_header *header, char *limit, int *truncp, int nameoffset, unsigned char **pp, 
 			unsigned long ttl, int *offset, unsigned short type, unsigned short class, char *format, ...)
@@ -1408,6 +1346,8 @@ size_t answer_request(struct dns_header *header, char *limit, size_t qlen,
 		}
 
 	    }
+	  else
+	    return 0; /* give up if any cached CNAME in chain can't be used for DNSSEC reasons. */
 
 	  strcpy(name, cname_target);
 	}

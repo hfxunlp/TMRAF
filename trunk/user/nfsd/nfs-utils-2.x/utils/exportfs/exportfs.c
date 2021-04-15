@@ -85,10 +85,29 @@ grab_lockfile()
 static void
 release_lockfile()
 {
-	if (_lockfd != -1)
+	if (_lockfd != -1) {
 		lockf(_lockfd, F_ULOCK, 0);
+		close(_lockfd);
+		_lockfd = -1;
+	}
 }
+inline static void 
+read_exportfs_conf(char **argv)
+{
+	char *s;
 
+	conf_init_file(NFS_CONFFILE);
+	xlog_set_debug("exportfs");
+
+	/* NOTE: following uses "mountd" section of nfs.conf !!!! */
+	s = conf_get_str("mountd", "state-directory-path");
+	/* Also look in the exportd section */
+	if (s == NULL)
+		s = conf_get_str("exportd", "state-directory-path");
+	if (s && !state_setup_basedir(argv[0], s))
+		exit(1);
+
+}
 int
 main(int argc, char **argv)
 {
@@ -102,7 +121,6 @@ main(int argc, char **argv)
 	int	f_ignore = 0;
 	int	i, c;
 	int	force_flush = 0;
-	char	*s;
 
 	if ((progname = strrchr(argv[0], '/')) != NULL)
 		progname++;
@@ -113,14 +131,10 @@ main(int argc, char **argv)
 	xlog_stderr(1);
 	xlog_syslog(0);
 
-	conf_init_file(NFS_CONFFILE);
-	xlog_from_conffile("exportfs");
-	nfsd_path_init();
+	/* Read in config setting */
+	read_exportfs_conf(argv);
 
-	/* NOTE: following uses "mountd" section of nfs.conf !!!! */
-	s = conf_get_str("mountd", "state-directory-path");
-	if (s && !state_setup_basedir(argv[0], s))
-		exit(1);
+	nfsd_path_init();
 
 	while ((c = getopt(argc, argv, "ad:fhio:ruvs")) != EOF) {
 		switch(c) {
@@ -173,8 +187,10 @@ main(int argc, char **argv)
 		xlog(L_ERROR, "-r and -u are incompatible");
 		return 1;
 	}
+
 	if (!setup_state_path_names(progname, ETAB, ETABTMP, ETABLCK, &etab))
 		return 1;
+
 	if (optind == argc && ! f_all) {
 		if (force_flush) {
 			cache_flush(1);
@@ -184,6 +200,7 @@ main(int argc, char **argv)
 			xtab_export_read();
 			dump(f_verbose, f_export_format);
 			free_state_path_names(&etab);
+			export_freeall();
 			return 0;
 		}
 	}
@@ -225,6 +242,7 @@ main(int argc, char **argv)
 	xtab_export_write();
 	cache_flush(force_flush);
 	free_state_path_names(&etab);
+	export_freeall();
 
 	return export_errno;
 }

@@ -6,7 +6,6 @@ clean:
 install:
 	@echo Nothing to be made.
 
-
 include ../lib.rules
 
 CFLAGS += -DCONFIG_CRYPTO_INTERNAL
@@ -65,7 +64,6 @@ LIB_OBJS += fips_prf_internal.o
 ifndef TEST_FUZZ
 LIB_OBJS += random.o
 endif
-
 
 libcrypto.a: $(LIB_OBJS)
 	$(AR) crT $@ $?

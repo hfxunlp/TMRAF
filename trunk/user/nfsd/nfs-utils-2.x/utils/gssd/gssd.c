@@ -64,7 +64,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <netdb.h>
-#include <event.h>
+#include <event2/event.h>
 
 #include "gssd.h"
 #include "err_util.h"
@@ -77,7 +77,7 @@ static char *pipefs_path = GSSD_PIPEFS_DIR;
 static DIR *pipefs_dir;
 static int pipefs_fd;
 static int inotify_fd;
-struct event inotify_ev;
+struct event *inotify_ev;
 
 char *keytabfile = GSSD_DEFAULT_KEYTAB_FILE;
 char **ccachesearch;
@@ -90,9 +90,9 @@ char *ccachedir = NULL;
 /* Avoid DNS reverse lookups on server names */
 static bool avoid_dns = true;
 static bool use_gssproxy = false;
-int thread_started = false;
-pthread_mutex_t pmutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t pcond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t clp_lock = PTHREAD_MUTEX_INITIALIZER;
+static bool signal_received = false;
+static struct event_base *evbase = NULL;
 
 TAILQ_HEAD(topdir_list_head, topdir) topdir_list;
 
@@ -359,25 +359,57 @@ out:
 	free(port);
 }
 
+/* Actually frees clp and fields that might be used from other
+ * threads if was last reference.
+ */
 static void
-gssd_destroy_client(struct clnt_info *clp)
+gssd_free_client(struct clnt_info *clp)
 {
-	if (clp->krb5_fd >= 0) {
+	int refcnt;
+
+	pthread_mutex_lock(&clp_lock);
+	refcnt = --clp->refcount;
+	pthread_mutex_unlock(&clp_lock);
+	if (refcnt > 0)
+		return;
+
+	printerr(3, "freeing client %s\n", clp->relpath);
+
+	if (clp->krb5_fd >= 0)
 		close(clp->krb5_fd);
-		event_del(&clp->krb5_ev);
-	}
 
-	if (clp->gssd_fd >= 0) {
+	if (clp->gssd_fd >= 0)
 		close(clp->gssd_fd);
-		event_del(&clp->gssd_ev);
-	}
 
-	inotify_rm_watch(inotify_fd, clp->wd);
 	free(clp->relpath);
 	free(clp->servicename);
 	free(clp->servername);
 	free(clp->protocol);
 	free(clp);
+}
+
+/* Called when removing from clnt_list to tear down event handling.
+ * Will then free clp if was last reference.
+ */
+static void
+gssd_destroy_client(struct clnt_info *clp)
+{
+	printerr(3, "destroying client %s\n", clp->relpath);
+
+	if (clp->krb5_ev) {
+		event_del(clp->krb5_ev);
+		event_free(clp->krb5_ev);
+		clp->krb5_ev = NULL;
+	}
+
+	if (clp->gssd_ev) {
+		event_del(clp->gssd_ev);
+		event_free(clp->gssd_ev);
+		clp->gssd_ev = NULL;
+	}
+
+	inotify_rm_watch(inotify_fd, clp->wd);
+	gssd_free_client(clp);
 }
 
 static void gssd_scan(void);
@@ -416,9 +448,19 @@ static struct clnt_upcall_info *alloc_upcall_info(struct clnt_info *clp)
 	info = malloc(sizeof(struct clnt_upcall_info));
 	if (info == NULL)
 		return NULL;
+
+	pthread_mutex_lock(&clp_lock);
+	clp->refcount++;
+	pthread_mutex_unlock(&clp_lock);
 	info->clp = clp;
 
 	return info;
+}
+
+void free_upcall_info(struct clnt_upcall_info *info)
+{
+	gssd_free_client(info->clp);
+	free(info);
 }
 
 /* For each upcall read the upcall info into the buffer, then create a
@@ -438,13 +480,13 @@ gssd_clnt_gssd_cb(int UNUSED(fd), short UNUSED(which), void *data)
 	info->lbuflen = read(clp->gssd_fd, info->lbuf, sizeof(info->lbuf));
 	if (info->lbuflen <= 0 || info->lbuf[info->lbuflen-1] != '\n') {
 		printerr(0, "WARNING: %s: failed reading request\n", __func__);
-		free(info);
+		free_upcall_info(info);
 		return;
 	}
 	info->lbuf[info->lbuflen-1] = 0;
 
 	if (start_upcall_thread(handle_gssd_upcall, info))
-		free(info);
+		free_upcall_info(info);
 }
 
 static void
@@ -461,12 +503,12 @@ gssd_clnt_krb5_cb(int UNUSED(fd), short UNUSED(which), void *data)
 			sizeof(info->uid)) < (ssize_t)sizeof(info->uid)) {
 		printerr(0, "WARNING: %s: failed reading uid from krb5 "
 			 "upcall pipe: %s\n", __func__, strerror(errno));
-		free(info);
+		free_upcall_info(info);
 		return;
 	}
 
 	if (start_upcall_thread(handle_krb5_upcall, info))
-		free(info);
+		free_upcall_info(info);
 }
 
 static struct clnt_info *
@@ -477,6 +519,8 @@ gssd_get_clnt(struct topdir *tdi, const char *name)
 	TAILQ_FOREACH(clp, &tdi->clnt_list, list)
 		if (!strcmp(clp->name, name))
 			return clp;
+
+	printerr(3, "creating client %s/%s\n", tdi->name, name);
 
 	clp = calloc(1, sizeof(struct clnt_info));
 	if (!clp) {
@@ -501,6 +545,7 @@ gssd_get_clnt(struct topdir *tdi, const char *name)
 	clp->name = clp->relpath + strlen(tdi->name) + 1;
 	clp->krb5_fd = -1;
 	clp->gssd_fd = -1;
+	clp->refcount = 1;
 
 	TAILQ_INSERT_HEAD(&tdi->clnt_list, clp, list);
 	return clp;
@@ -515,11 +560,8 @@ static int
 gssd_scan_clnt(struct clnt_info *clp)
 {
 	int clntfd;
-	bool gssd_was_closed;
-	bool krb5_was_closed;
 
-	gssd_was_closed = clp->gssd_fd < 0 ? true : false;
-	krb5_was_closed = clp->krb5_fd < 0 ? true : false;
+	printerr(3, "scanning client %s\n", clp->relpath);
 
 	clntfd = openat(pipefs_fd, clp->relpath, O_RDONLY);
 	if (clntfd < 0) {
@@ -535,16 +577,30 @@ gssd_scan_clnt(struct clnt_info *clp)
 	if (clp->gssd_fd == -1 && clp->krb5_fd == -1)
 		clp->krb5_fd = openat(clntfd, "krb5", O_RDWR | O_NONBLOCK);
 
-	if (gssd_was_closed && clp->gssd_fd >= 0) {
-		event_set(&clp->gssd_ev, clp->gssd_fd, EV_READ | EV_PERSIST,
-			  gssd_clnt_gssd_cb, clp);
-		event_add(&clp->gssd_ev, NULL);
+	if (!clp->gssd_ev && clp->gssd_fd >= 0) {
+		clp->gssd_ev = event_new(evbase, clp->gssd_fd, EV_READ | EV_PERSIST,
+					 gssd_clnt_gssd_cb, clp);
+		if (!clp->gssd_ev) {
+			printerr(0, "ERROR: %s: can't create gssd event for %s: %s\n",
+				 __FUNCTION__, clp->relpath, strerror(errno));
+			close(clp->gssd_fd);
+			clp->gssd_fd = -1;
+		} else {
+			event_add(clp->gssd_ev, NULL);
+		}
 	}
 
-	if (krb5_was_closed && clp->krb5_fd >= 0) {
-		event_set(&clp->krb5_ev, clp->krb5_fd, EV_READ | EV_PERSIST,
-			  gssd_clnt_krb5_cb, clp);
-		event_add(&clp->krb5_ev, NULL);
+	if (!clp->krb5_ev && clp->krb5_fd >= 0) {
+		clp->krb5_ev = event_new(evbase, clp->krb5_fd, EV_READ | EV_PERSIST,
+					 gssd_clnt_krb5_cb, clp);
+		if (!clp->krb5_ev) {
+			printerr(0, "ERROR: %s: can't create krb5 event for %s: %s\n",
+				 __FUNCTION__, clp->relpath, strerror(errno));
+			close(clp->krb5_fd);
+			clp->krb5_fd = -1;
+		} else {
+			event_add(clp->krb5_ev, NULL);
+		}
 	}
 
 	if (clp->krb5_fd == -1 && clp->gssd_fd == -1)
@@ -651,7 +707,7 @@ gssd_scan_topdir(const char *name)
 		if (clp->scanned)
 			continue;
 
-		printerr(3, "destroying client %s\n", clp->relpath);
+		printerr(3, "orphaned client %s\n", clp->relpath);
 		saveprev = clp->list.tqe_prev;
 		TAILQ_REMOVE(&tdi->clnt_list, clp, list);
 		gssd_destroy_client(clp);
@@ -748,12 +804,16 @@ gssd_inotify_clnt(struct topdir *tdi, struct clnt_info *clp, const struct inotif
 	} else if (ev->mask & IN_DELETE) {
 		if (!strcmp(ev->name, "gssd") && clp->gssd_fd >= 0) {
 			close(clp->gssd_fd);
-			event_del(&clp->gssd_ev);
+			event_del(clp->gssd_ev);
+			event_free(clp->gssd_ev);
+			clp->gssd_ev = NULL;
 			clp->gssd_fd = -1;
 
 		} else if (!strcmp(ev->name, "krb5") && clp->krb5_fd >= 0) {
 			close(clp->krb5_fd);
-			event_del(&clp->krb5_ev);
+			event_del(clp->krb5_ev);
+			event_free(clp->krb5_ev);
+			clp->krb5_ev = NULL;
 			clp->krb5_fd = -1;
 		}
 
@@ -826,10 +886,15 @@ found:
 static void
 sig_die(int signal)
 {
-	if (root_uses_machine_creds)
-		gssd_destroy_krb5_machine_creds();
+	if (signal_received) {
+		gssd_destroy_krb5_principals(root_uses_machine_creds);
+		printerr(1, "forced exiting on signal %d\n", signal);
+		exit(0);
+	}
+
+	signal_received = true;
 	printerr(1, "exiting on signal %d\n", signal);
-	exit(0);
+	event_base_loopexit(evbase, NULL);
 }
 
 static void
@@ -886,9 +951,10 @@ main(int argc, char *argv[])
 	int rpc_verbosity = 0;
 	int opt;
 	int i;
+	int rc;
 	extern char *optarg;
 	char *progname;
-	struct event sighup_ev;
+	struct event *sighup_ev;
 
 	read_gss_conf();
 
@@ -1027,7 +1093,11 @@ main(int argc, char *argv[])
 	if (gssd_check_mechs() != 0)
 		errx(1, "Problem with gssapi library");
 
-	event_init();
+	evbase = event_base_new();
+	if (!evbase) {
+		printerr(0, "ERROR: failed to create event base: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 
 	pipefs_dir = opendir(pipefs_path);
 	if (!pipefs_dir) {
@@ -1049,18 +1119,51 @@ main(int argc, char *argv[])
 
 	signal(SIGINT, sig_die);
 	signal(SIGTERM, sig_die);
-	signal_set(&sighup_ev, SIGHUP, gssd_scan_cb, NULL);
-	signal_add(&sighup_ev, NULL);
-	event_set(&inotify_ev, inotify_fd, EV_READ | EV_PERSIST, gssd_inotify_cb, NULL);
-	event_add(&inotify_ev, NULL);
+	sighup_ev = evsignal_new(evbase, SIGHUP, gssd_scan_cb, NULL);
+	if (!sighup_ev) {
+		printerr(0, "ERROR: failed to create SIGHUP event: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	evsignal_add(sighup_ev, NULL);
+	inotify_ev = event_new(evbase, inotify_fd, EV_READ | EV_PERSIST,
+			       gssd_inotify_cb, NULL);
+	if (!inotify_ev) {
+		printerr(0, "ERROR: failed to create inotify event: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	event_add(inotify_ev, NULL);
 
 	TAILQ_INIT(&topdir_list);
 	gssd_scan();
 	daemon_ready();
 
-	event_dispatch();
+	rc = event_base_dispatch(evbase);
 
-	printerr(0, "ERROR: event_dispatch() returned!\n");
-	return EXIT_FAILURE;
+	printerr(0, "event_dispatch() returned %i!\n", rc);
+
+	gssd_destroy_krb5_principals(root_uses_machine_creds);
+
+	while (!TAILQ_EMPTY(&topdir_list)) {
+		struct topdir *tdi = TAILQ_FIRST(&topdir_list);
+		TAILQ_REMOVE(&topdir_list, tdi, list);
+		while (!TAILQ_EMPTY(&tdi->clnt_list)) {
+			struct clnt_info *clp = TAILQ_FIRST(&tdi->clnt_list);
+			TAILQ_REMOVE(&tdi->clnt_list, clp, list);
+			gssd_destroy_client(clp);
+		}
+		free(tdi);
+	}
+
+	event_free(inotify_ev);
+	event_free(sighup_ev);
+	event_base_free(evbase);
+
+	close(inotify_fd);
+	close(pipefs_fd);
+	closedir(pipefs_dir);
+
+	free(preferred_realm);
+	free(ccachesearch);
+
+	return rc < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

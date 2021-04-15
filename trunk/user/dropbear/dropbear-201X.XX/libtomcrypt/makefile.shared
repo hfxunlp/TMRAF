@@ -35,9 +35,7 @@ ifndef LIBNAME
    LIBNAME=libtomcrypt.la
 endif
 
-
 include makefile_include.mk
-
 
 #ciphers come in two flavours... enc+dec and enc
 src/ciphers/aes/aes_enc.o: src/ciphers/aes/aes.c src/ciphers/aes/aes_tab.c

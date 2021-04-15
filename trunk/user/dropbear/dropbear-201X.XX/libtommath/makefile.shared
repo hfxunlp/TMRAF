@@ -9,7 +9,6 @@ endif
 
 include makefile_include.mk
 
-
 ifndef LT
   ifeq ($(PLATFORM), Darwin)
     LT:=glibtool

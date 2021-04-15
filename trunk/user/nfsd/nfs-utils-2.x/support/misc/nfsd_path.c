@@ -110,6 +110,7 @@ nfsd_setup_workqueue(void)
 
 	if (!rootdir)
 		return;
+
 	nfsd_wq = xthread_workqueue_alloc();
 	if (!nfsd_wq)
 		return;

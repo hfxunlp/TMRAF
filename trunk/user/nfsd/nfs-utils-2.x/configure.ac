@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-AC_INIT([linux nfs-utils],[2.5.1],[linux-nfs@vger.kernel.org],[nfs-utils])
+AC_INIT([linux nfs-utils],[2.5.3],[linux-nfs@vger.kernel.org],[nfs-utils])
 AC_CANONICAL_BUILD([])
 AC_CANONICAL_HOST([])
 AC_CONFIG_MACRO_DIR(aclocal)
@@ -256,6 +256,17 @@ AC_ARG_ENABLE(nfsdcltrack,
 			[disable NFSv4 clientid tracking programs @<:@default=no@:>@])],
 	enable_nfsdcltrack=$enableval,
 	enable_nfsdcltrack="yes")
+
+AC_ARG_ENABLE(nfsv4server,
+	[AC_HELP_STRING([--enable-nfsv4server],
+			[enable support for NFSv4 only server  @<:@default=no@:>@])],
+	enable_nfsv4server=$enableval,
+	enable_nfsv4server="no")
+	if test "$enable_nfsv4server" = yes; then
+		AC_DEFINE(HAVE_NFSV4SERVER_SUPPORT, 1,
+                          [Define this if you want NFSv4 server only support compiled in])
+	fi
+	AM_CONDITIONAL(CONFIG_NFSV4SERVER, [test "$enable_nfsv4server" = "yes" ])
 
 dnl Check for TI-RPC library and headers
 AC_LIBTIRPC
@@ -638,13 +649,12 @@ my_am_cflags="\
  -Werror=parentheses \
  -Werror=aggregate-return \
  -Werror=unused-result \
- -Wno-cast-function-type \
  -fno-strict-aliasing \
 "
 
 AC_DEFUN([CHECK_CCSUPPORT], [
   my_save_cflags="$CFLAGS"
-  CFLAGS=$1
+  CFLAGS="-Werror $1"
   AC_MSG_CHECKING([whether CC supports $1])
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],
     [AC_MSG_RESULT([yes])]
@@ -658,9 +668,10 @@ CHECK_CCSUPPORT([-Werror=format-overflow=2], [flg1])
 CHECK_CCSUPPORT([-Werror=int-conversion], [flg2])
 CHECK_CCSUPPORT([-Werror=incompatible-pointer-types], [flg3])
 CHECK_CCSUPPORT([-Werror=misleading-indentation], [flg4])
+CHECK_CCSUPPORT([-Wno-cast-function-type], [flg5])
 AX_GCC_FUNC_ATTRIBUTE([format])
 
-AC_SUBST([AM_CFLAGS], ["$my_am_cflags $flg1 $flg2 $flg3 $flg4"])
+AC_SUBST([AM_CFLAGS], ["$my_am_cflags $flg1 $flg2 $flg3 $flg4 $flg5"])
 
 # Make sure that $ACLOCAL_FLAGS are used during a rebuild
 AC_SUBST([ACLOCAL_AMFLAGS], ["-I $ac_macro_dir \$(ACLOCAL_FLAGS)"])
@@ -706,6 +717,7 @@ AC_CONFIG_FILES([
 	utils/idmapd/Makefile
 	utils/mount/Makefile
 	utils/mountd/Makefile
+	utils/exportd/Makefile
 	utils/nfsd/Makefile
 	utils/nfsref/Makefile
 	utils/nfsstat/Makefile

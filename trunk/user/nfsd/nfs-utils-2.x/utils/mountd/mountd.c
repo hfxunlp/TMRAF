@@ -661,31 +661,18 @@ get_exportlist(void)
 	return elist;
 }
 
-int
-main(int argc, char **argv)
+int	vers;
+int	port = 0;
+int	descriptors = 0;
+
+inline static void 
+read_mountd_conf(char **argv)
 {
-	char	*progname;
 	char	*s;
-	unsigned int listeners = 0;
-	int	foreground = 0;
-	int	port = 0;
-	int	descriptors = 0;
-	int	c;
-	int	vers;
-	struct sigaction sa;
-	struct rlimit rlim;
-
-	/* Set the basename */
-	if ((progname = strrchr(argv[0], '/')) != NULL)
-		progname++;
-	else
-		progname = argv[0];
-
-	/* Initialize logging. */
-	xlog_open(progname);
 
 	conf_init_file(NFS_CONFFILE);
-	xlog_from_conffile("mountd");
+
+	xlog_set_debug("mountd");
 	manage_gids = conf_get_bool("mountd", "manage-gids", manage_gids);
 	descriptors = conf_get_num("mountd", "descriptors", descriptors);
 	port = conf_get_num("mountd", "port", port);
@@ -714,7 +701,29 @@ main(int argc, char **argv)
 		else
 			NFSCTL_VERUNSET(nfs_version, vers);
 	}
+}
 
+int
+main(int argc, char **argv)
+{
+	char	*progname;
+	unsigned int listeners = 0;
+	int	foreground = 0;
+	int	c;
+	struct sigaction sa;
+	struct rlimit rlim;
+
+	/* Set the basename */
+	if ((progname = strrchr(argv[0], '/')) != NULL)
+		progname++;
+	else
+		progname = argv[0];
+
+	/* Initialize logging. */
+	xlog_open(progname);
+
+	/* Read in config setting */
+	read_mountd_conf(argv);
 
 	/* Parse the command line options and arguments. */
 	opterr = 0;

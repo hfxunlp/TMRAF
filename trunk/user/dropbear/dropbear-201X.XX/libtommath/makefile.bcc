@@ -2,7 +2,6 @@
 # Borland C++Builder Makefile (makefile.bcc)
 #
 
-
 LIB = tlib
 CC = bcc32
 CFLAGS = -c -O3 -I.

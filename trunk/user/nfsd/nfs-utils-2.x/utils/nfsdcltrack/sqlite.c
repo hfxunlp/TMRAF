@@ -40,7 +40,7 @@
 
 #include <dirent.h>
 #include <errno.h>
-#include <event.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/stat.h>

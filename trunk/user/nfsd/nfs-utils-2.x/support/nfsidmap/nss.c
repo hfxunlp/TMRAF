@@ -467,6 +467,17 @@ static int nss_plugin_init(void)
 	return 0;
 }
 
+/*
+ * Called by dlclose(). See dlopen(3) man page
+ */
+__attribute__((destructor))
+static int nss_plugin_term(void)
+{
+	free_local_realms();
+	conf_cleanup();
+	return 0;
+}
+
 
 struct trans_func nss_trans = {
 	.name		= "nsswitch",

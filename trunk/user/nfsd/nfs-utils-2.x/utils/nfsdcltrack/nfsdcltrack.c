@@ -549,12 +549,21 @@ find_cmd(char *cmdname)
 			__func__, cmdname);
 	return NULL;
 }
+inline static void 
+read_nfsdcltrack_conf(void)
+{
+	char *val;
 
+	conf_init_file(NFS_CONFFILE); 
+	xlog_set_debug("nfsdcltrack");
+	val = conf_get_str("nfsdcltrack", "storagedir");
+	if (val)
+		storagedir = val;
+}
 int
 main(int argc, char **argv)
 {
 	int arg;
-	char *val;
 	int rc = 0;
 	char *progname, *cmdarg = NULL;
 	struct cltrack_cmd *cmd;
@@ -564,14 +573,8 @@ main(int argc, char **argv)
 	xlog_syslog(1);
 	xlog_stderr(0);
 
-	conf_init_file(NFS_CONFFILE); 
-	xlog_from_conffile("nfsdcltrack");
-	val = conf_get_str("nfsdcltrack", "storagedir");
-	if (val)
-		storagedir = val;
-	rc = conf_get_num("nfsdcltrack", "debug", 0);
-	if (rc > 0)
-		xlog_config(D_ALL, 1);
+	/* Read in config setting */
+	read_nfsdcltrack_conf();
 
 	/* process command-line options */
 	while ((arg = getopt_long(argc, argv, "hdfs:", longopts,

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- python-mode -*-
 """Parse /proc/self/mountstats and display it in human readable form
 """
@@ -378,7 +378,10 @@ class DeviceData:
                 print('\t%12s: %s' % (op, " ".join(str(x) for x in self.__rpc_data[op])))
         elif vers == '4':
             for op in Nfsv4ops:
-                print('\t%12s: %s' % (op, " ".join(str(x) for x in self.__rpc_data[op])))
+                try:
+                    print('\t%12s: %s' % (op, " ".join(str(x) for x in self.__rpc_data[op])))
+                except KeyError:
+                    continue
         else:
             print('\tnot implemented for version %d' % vers)
         print()
@@ -560,7 +563,10 @@ class DeviceData:
         # the reference to them.  so we build new lists here
         # for the result object.
         for op in result.__rpc_data['ops']:
-            result.__rpc_data[op] = list(map(difference, self.__rpc_data[op], old_stats.__rpc_data[op]))
+            try:
+                result.__rpc_data[op] = list(map(difference, self.__rpc_data[op], old_stats.__rpc_data[op]))
+            except KeyError:
+                continue
 
         # update the remaining keys
         if protocol == 'udp':
@@ -950,10 +956,11 @@ def print_iostat_summary(old, new, devices, time):
         if not old or device not in old:
             stats.display_iostats(time)
         else:
-            old_stats = DeviceData()
-            old_stats.parse_stats(old[device])
-            diff_stats = stats.compare_iostats(old_stats)
-            diff_stats.display_iostats(time)
+            if ("fstype autofs" not in str(old[device])) and ("fstype autofs" not in str(new[device])):
+                old_stats = DeviceData()
+                old_stats.parse_stats(old[device])
+                diff_stats = stats.compare_iostats(old_stats)
+                diff_stats.display_iostats(time)
 
 def iostat_command(args):
     """iostat-like command for NFS mount points

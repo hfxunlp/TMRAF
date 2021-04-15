@@ -38,4 +38,3 @@ testchar$(EXEEXT): testchar.c
 
 do_testchar: testchar$(EXEEXT)
 	./testchar
-

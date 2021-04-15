@@ -6,5 +6,3 @@ rsa_test.obj store_test.obj test_driver.obj x86_prof.obj katja_test.obj
 
 tomcrypt_prof.lib: $(OBJECTS)
 	lib /out:tomcrypt_prof.lib $(OBJECTS)
-
-

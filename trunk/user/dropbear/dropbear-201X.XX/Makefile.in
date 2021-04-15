@@ -18,7 +18,7 @@ STATIC_LTM=libtommath/libtommath.a
 LIBTOM_LIBS=@LIBTOM_LIBS@
 
 ifeq (@BUNDLED_LIBTOM@, 1)
-LIBTOM_DEPS=$(STATIC_LTC) $(STATIC_LTM) 
+LIBTOM_DEPS=$(STATIC_LTC) $(STATIC_LTM)
 LIBTOM_CLEAN=ltc-clean ltm-clean
 CFLAGS+=-I$(srcdir)/libtomcrypt/src/headers/
 LIBTOM_LIBS=$(STATIC_LTC) $(STATIC_LTM)
@@ -47,7 +47,7 @@ SVROBJS=svr-kex.o svr-auth.o sshpty.o \
 CLIOBJS=cli-main.o cli-auth.o cli-authpasswd.o cli-kex.o \
 		cli-session.o cli-runopts.o cli-chansession.o \
 		cli-authpubkey.o cli-tcpfwd.o cli-channel.o cli-authinteract.o \
-		cli-agentfwd.o 
+		cli-agentfwd.o
 
 CLISVROBJS=common-session.o packet.o common-algo.o common-kex.o \
 			common-channel.o common-chansession.o termcodes.o loginrec.o \
@@ -156,14 +156,14 @@ install: $(addprefix inst_, $(TARGETS))
 insmultidropbear: dropbearmulti$(EXEEXT)
 	$(INSTALL) -d $(DESTDIR)$(sbindir)
 	-rm -f $(DESTDIR)$(sbindir)/dropbear$(EXEEXT)
-	-ln -s $(bindir)/dropbearmulti$(EXEEXT) $(DESTDIR)$(sbindir)/dropbear$(EXEEXT) 
+	-ln -s $(bindir)/dropbearmulti$(EXEEXT) $(DESTDIR)$(sbindir)/dropbear$(EXEEXT)
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -m 644 $(srcdir)/dropbear.8  $(DESTDIR)$(mandir)/man8/dropbear.8
 
 insmulti%: dropbearmulti$(EXEEXT)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
-	-rm -f $(DESTDIR)$(bindir)/$*$(EXEEXT) 
-	-ln -s $(bindir)/dropbearmulti$(EXEEXT) $(DESTDIR)$(bindir)/$*$(EXEEXT) 
+	-rm -f $(DESTDIR)$(bindir)/$*$(EXEEXT)
+	-ln -s $(bindir)/dropbearmulti$(EXEEXT) $(DESTDIR)$(bindir)/$*$(EXEEXT)
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man1
 	if test -e $*.1; then $(INSTALL) -m 644 $*.1 $(DESTDIR)$(mandir)/man1/$*.1; fi
 
@@ -180,7 +180,7 @@ inst_%: %
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man1
 	if test -e $*.1; then $(INSTALL) -m 644 $*.1 $(DESTDIR)$(mandir)/man1/$*.1; fi
 
-inst_dropbearmulti: $(addprefix insmulti, $(PROGRAMS)) 
+inst_dropbearmulti: $(addprefix insmulti, $(PROGRAMS))
 
 # for some reason the rule further down doesn't like $($@objs) as a prereq.
 dropbear: $(dropbearobjs)
@@ -200,7 +200,6 @@ dropbearkey dropbearconvert: $(HEADERS) $(LIBTOM_DEPS) Makefile
 # scp doesn't use the libs so is special.
 scp: $(SCPOBJS)  $(HEADERS) Makefile
 	$(CC) $(LDFLAGS) -o $@$(EXEEXT) $(SCPOBJS)
-
 
 # multi-binary compilation.
 MULTIOBJS=
@@ -270,7 +269,7 @@ fuzzstandalone: fuzz-harness.o fuzz-targets
 svrfuzzobjs=$(subst svr-main.o, ,$(dropbearobjs))
 
 # build all the fuzzers. This will require fail to link unless built with
-# make fuzz-targets FUZZLIB=-lFuzzer.a 
+# make fuzz-targets FUZZLIB=-lFuzzer.a
 # or similar - the library provides main().
 fuzz-targets: $(FUZZ_TARGETS) $(FUZZER_OPTIONS)
 
@@ -296,7 +295,7 @@ fuzzer-%.options: Makefile
 	echo "[libfuzzer]"               > $@
 	echo "max_len = 50000"          >> $@
 
-# run this to update hardcoded hostkeys for for fuzzing. 
+# run this to update hardcoded hostkeys for for fuzzing.
 # hostkeys.c is checked in to hg.
 fuzz-hostkeys:
 	dropbearkey -t rsa -f keyr

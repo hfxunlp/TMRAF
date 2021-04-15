@@ -129,4 +129,3 @@ valgrind:
 	   $(MAKE) CHECKER='valgrind -q' pytests ; fi);
 
 CLEANFILES=$(PYSCRIPTS) test.log
-

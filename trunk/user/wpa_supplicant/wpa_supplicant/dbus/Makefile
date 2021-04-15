@@ -18,7 +18,6 @@ endif
 PKG_CONFIG ?= pkg-config
 CFLAGS += -I../../src -I../../src/utils
 
-
 Q=@
 E=echo
 ifeq ($(V), 1)
@@ -29,7 +28,6 @@ endif
 %.o: %.c
 	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
 	@$(E) "  CC " $<
-
 
 ifdef CONFIG_WPS
 CFLAGS += -DCONFIG_WPS

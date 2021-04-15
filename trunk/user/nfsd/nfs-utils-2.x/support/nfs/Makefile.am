@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-noinst_LIBRARIES = 
+noinst_LIBRARIES =
 noinst_LTLIBRARIES = libnfs.la libnfsconf.la
 
 libnfs_la_SOURCES = exports.c rmtab.c xio.c rpcmisc.c rpcdispatch.c \
@@ -13,4 +13,3 @@ libnfs_la_LIBADD = libnfsconf.la
 libnfsconf_la_SOURCES = conffile.c xlog.c
 
 MAINTAINERCLEANFILES = Makefile.in
-

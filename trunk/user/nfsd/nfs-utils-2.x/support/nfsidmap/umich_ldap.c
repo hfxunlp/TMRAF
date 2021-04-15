@@ -643,6 +643,7 @@ umich_name_to_ids(char *name, int idtype, uid_t *uid, gid_t *gid,
 				goto out_memfree;
 			}
 			*uid = tmp_uid;
+			err = 0;
 		} else if (strcasecmp(attr_res, ldap_map.NFSv4_gid_attr) == 0) {
 			tmp_g = strtoul(*idstr, (char **)NULL, 10);
 			tmp_gid = tmp_g;
@@ -656,6 +657,7 @@ umich_name_to_ids(char *name, int idtype, uid_t *uid, gid_t *gid,
 				goto out_memfree;
 			}
 			*gid = tmp_gid;
+			err = 0;
 		} else {
 			IDMAP_LOG(0, ("umich_name_to_ids: received attr "
 				"'%s' ???", attr_res));
@@ -667,7 +669,6 @@ umich_name_to_ids(char *name, int idtype, uid_t *uid, gid_t *gid,
 		ldap_value_free(idstr);
 	}
 
-	err = 0;
 out_memfree:
 	ber_free(ber, 0);
 out_unbind:

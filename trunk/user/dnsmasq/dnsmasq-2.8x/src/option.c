@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2020 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -167,6 +167,9 @@ struct myoption {
 #define LOPT_IGNORE_CLID   358
 #define LOPT_SINGLE_PORT   359
 #define LOPT_SCRIPT_TIME   360
+#define LOPT_PXE_VENDOR    361
+#define LOPT_DYNHOST       362
+#define LOPT_LOG_DEBUG     363
  
 #ifdef HAVE_GETOPT_LONG
 static const struct option opts[] =  
@@ -270,6 +273,7 @@ static const struct myoption opts[] =
     { "dhcp-circuitid", 1, 0, LOPT_CIRCUIT },
     { "dhcp-remoteid", 1, 0, LOPT_REMOTE },
     { "dhcp-subscrid", 1, 0, LOPT_SUBSCR },
+    { "dhcp-pxe-vendor", 1, 0, LOPT_PXE_VENDOR },
     { "interface-name", 1, 0, LOPT_INTNAME },
     { "dhcp-hostsfile", 1, 0, LOPT_DHCP_HOST },
     { "dhcp-optsfile", 1, 0, LOPT_DHCP_OPTS },
@@ -339,6 +343,8 @@ static const struct myoption opts[] =
     { "dumpfile", 1, 0, LOPT_DUMPFILE },
     { "dumpmask", 1, 0, LOPT_DUMPMASK },
     { "dhcp-ignore-clid", 0, 0,  LOPT_IGNORE_CLID },
+    { "dynamic-host", 1, 0, LOPT_DYNHOST },
+    { "log-debug", 0, 0, LOPT_LOG_DEBUG },
     { NULL, 0, 0, 0 }
   };
 
@@ -383,6 +389,7 @@ static struct {
   { LOPT_CIRCUIT, ARG_DUP, "set:<tag>,<circuit>", gettext_noop("Map RFC3046 circuit-id to tag."), NULL },
   { LOPT_REMOTE, ARG_DUP, "set:<tag>,<remote>", gettext_noop("Map RFC3046 remote-id to tag."), NULL },
   { LOPT_SUBSCR, ARG_DUP, "set:<tag>,<remote>", gettext_noop("Map RFC3993 subscriber-id to tag."), NULL },
+  { LOPT_PXE_VENDOR, ARG_DUP, "<vendor>[,...]", gettext_noop("Specify vendor class to match for PXE requests."), NULL },
   { 'J', ARG_DUP, "tag:<tag>...", gettext_noop("Don't do DHCP for hosts with tag set."), NULL },
   { LOPT_BROADCAST, ARG_DUP, "[=tag:<tag>...]", gettext_noop("Force broadcast replies for hosts with tag set."), NULL }, 
   { 'k', OPT_NO_FORK, NULL, gettext_noop("Do NOT fork into the background, do NOT run in debug mode."), NULL },
@@ -488,6 +495,7 @@ static struct {
   { LOPT_RA, OPT_RA, NULL, gettext_noop("Send router-advertisements for interfaces doing DHCPv6"), NULL },
   { LOPT_DUID, ARG_ONE, "<enterprise>,<duid>", gettext_noop("Specify DUID_EN-type DHCPv6 server DUID"), NULL },
   { LOPT_HOST_REC, ARG_DUP, "<name>,<address>[,<ttl>]", gettext_noop("Specify host (A/AAAA and PTR) records"), NULL },
+  { LOPT_DYNHOST, ARG_DUP, "<name>,[<IPv4>][,<IPv6>],<interface-name>", gettext_noop("Specify host record in interface subnet"), NULL },
   { LOPT_CAA, ARG_DUP, "<name>,<flags>,<tag>,<value>", gettext_noop("Specify certification authority authorization record"), NULL },  
   { LOPT_RR, ARG_DUP, "<name>,<RR-number>,[<data>]", gettext_noop("Specify arbitrary DNS resource record"), NULL },
   { LOPT_CLVERBIND, OPT_CLEVERBIND, NULL, gettext_noop("Bind to interfaces in use - check for new interfaces"), NULL },
@@ -509,6 +517,7 @@ static struct {
   { LOPT_QUIET_DHCP, OPT_QUIET_DHCP, NULL, gettext_noop("Do not log routine DHCP."), NULL },
   { LOPT_QUIET_DHCP6, OPT_QUIET_DHCP6, NULL, gettext_noop("Do not log routine DHCPv6."), NULL },
   { LOPT_QUIET_RA, OPT_QUIET_RA, NULL, gettext_noop("Do not log RA."), NULL },
+  { LOPT_LOG_DEBUG, OPT_LOG_DEBUG, NULL, gettext_noop("Log debugging information."), NULL }, 
   { LOPT_LOCAL_SERVICE, OPT_LOCAL_SERVICE, NULL, gettext_noop("Accept queries only from directly-connected networks."), NULL },
   { LOPT_LOOP_DETECT, OPT_LOOP_DETECT, NULL, gettext_noop("Detect and remove DNS forwarding loops."), NULL },
   { LOPT_IGNORE_ADDR, ARG_DUP, "<ipaddr>", gettext_noop("Ignore DNS responses containing ipaddr."), NULL }, 
@@ -810,7 +819,8 @@ char *parse_server(char *arg, union mysockaddr *addr, union mysockaddr *source_a
     if (interface_opt)
       {
 #if defined(SO_BINDTODEVICE)
-	safe_strncpy(interface, interface_opt, IF_NAMESIZE);
+	safe_strncpy(interface, source, IF_NAMESIZE);
+	source = interface_opt;
 #else
 	return _("interface binding not supported");
 #endif
@@ -2478,8 +2488,14 @@ static int one_opt(int option, char *arg, char *errstr, char *gen_err, int comma
     case LOPT_IGNORE_ADDR: /* --ignore-address */
      {
 	struct in_addr addr;
+	int prefix = 32;
 	unhide_metas(arg);
-	if (arg && (inet_pton(AF_INET, arg, &addr) > 0))
+
+	if (!arg ||
+	    ((comma = split_chr(arg, '/')) && !atoi_check(comma, &prefix)) ||
+	    (inet_pton(AF_INET, arg, &addr) != 1))
+	  ret_err(gen_err); /* error */
+	else
 	  {
 	    struct bogus_addr *baddr = opt_malloc(sizeof(struct bogus_addr));
 	    if (option == 'B')
@@ -2492,12 +2508,11 @@ static int one_opt(int option, char *arg, char *errstr, char *gen_err, int comma
 		baddr->next = daemon->ignore_addr;
 		daemon->ignore_addr = baddr;
 	      }
-	    baddr->addr = addr;
+	    baddr->mask.s_addr = htonl(~((1 << (32 - prefix)) - 1));
+	    baddr->addr.s_addr = addr.s_addr & baddr->mask.s_addr;
 	  }
-	else
-	  ret_err(gen_err); /* error */
-	break;	
-      }
+	break;
+     }
       
     case 'a':  /* --listen-address */
     case LOPT_AUTHPEER: /* --auth-peer */
@@ -3672,8 +3687,8 @@ static int one_opt(int option, char *arg, char *errstr, char *gen_err, int comma
 	     new->val = opt_malloc(new->len);
 	     memcpy(new->val + 1, arg, new->len - 1);
 	     
-	     new->u.vendor_class = (unsigned char *)"PXEClient";
-	     new->flags = DHOPT_VENDOR;
+	     new->u.vendor_class = NULL;
+	     new->flags = DHOPT_VENDOR | DHOPT_VENDOR_PXE;
 	     
 	     if (comma && atoi_check(comma, &timeout))
 	       *(new->val) = timeout;
@@ -3935,6 +3950,19 @@ static int one_opt(int option, char *arg, char *errstr, char *gen_err, int comma
 	new->next = daemon->override_relays;
 	daemon->override_relays = new;
 	arg = comma;
+	}
+	  break;
+
+    case LOPT_PXE_VENDOR: /* --dhcp-pxe-vendor */
+      {
+        while (arg) {
+	  struct dhcp_pxe_vendor *new = opt_malloc(sizeof(struct dhcp_pxe_vendor));
+	  comma = split(arg);
+          new->data = opt_string_alloc(arg);
+	  new->next = daemon->dhcp_pxe_vendors;
+	  daemon->dhcp_pxe_vendors = new;
+	  arg = comma;
+	}
       }
       break;
 
@@ -4059,36 +4087,66 @@ err:
       }
       
     case LOPT_INTNAME:  /* --interface-name */
+    case LOPT_DYNHOST:  /* --dynamic-host */
       {
 	struct interface_name *new, **up;
-	char *domain = NULL;
-
-	comma = split(arg);
+	char *domain = arg;
 	
-	if (!comma || !(domain = canonicalise_opt(arg)))
-	  ret_err(_("bad interface name"));
+	arg = split(arg);
 	
 	new = opt_malloc(sizeof(struct interface_name));
-	new->next = NULL;
-	new->addr = NULL;
+	memset(new, 0, sizeof(struct interface_name));
+	new->flags = IN4 | IN6;
 	
 	/* Add to the end of the list, so that first name
 	   of an interface is used for PTR lookups. */
 	for (up = &daemon->int_names; *up; up = &((*up)->next));
 	*up = new;
-	new->name = domain;
-	new->family = 0;
-	arg = split_chr(comma, '/');
-	if (arg)
+	
+	while ((comma = split(arg)))
 	  {
-	    if (strcmp(arg, "4") == 0)
-	      new->family = AF_INET;
-	    else if (strcmp(arg, "6") == 0)
-	      new->family = AF_INET6;
+	    if (inet_pton(AF_INET, arg, &new->proto4))
+	      new->flags |= INP4;
+	    else if (inet_pton(AF_INET6, arg, &new->proto6))
+	      new->flags |= INP6;
+	    else
+	      break;
+	    
+	    arg = comma;
+	  }
+
+	if ((comma = split_chr(arg, '/')))
+	  {
+	    if (strcmp(comma, "4") == 0)
+	      new->flags &= ~IN6;
+	    else if (strcmp(comma, "6") == 0)
+	      new->flags &= ~IN4;
 	    else
 	      ret_err_free(gen_err, new);
-	  } 
-	new->intr = opt_string_alloc(comma);
+	  }
+
+	new->intr = opt_string_alloc(arg);
+
+	if (option == LOPT_DYNHOST)
+	  {
+	    if (!(new->flags & (INP4 | INP6)))
+	      ret_err(_("missing address in dynamic host"));
+
+	    if (!(new->flags & IN4) || !(new->flags & IN6))
+	      arg = NULL; /* provoke error below */
+
+	    new->flags &= ~(IN4 | IN6);
+	  }
+	else
+	  {
+	    if (new->flags & (INP4 | INP6))
+	      arg = NULL; /* provoke error below */
+	  }
+	
+	if (!domain || !arg || !(new->name = canonicalise_opt(domain)))
+	  ret_err(option == LOPT_DYNHOST ?
+		  _("bad dynamic host") : _("bad interface name"));
+	
 	break;
       }
       
@@ -5018,9 +5076,7 @@ void read_opts(int argc, char **argv, char *compile_opts)
   daemon->soa_refresh = SOA_REFRESH;
   daemon->soa_retry = SOA_RETRY;
   daemon->soa_expiry = SOA_EXPIRY;
-  daemon->max_port = MAX_PORT;
-  daemon->min_port = MIN_PORT;
-
+  
 #ifndef NO_ID
   add_txt("version.bind", "dnsmasq-" VERSION, 0 );
   add_txt("authors.bind", "Simon Kelley", 0);
@@ -5211,6 +5267,13 @@ void read_opts(int argc, char **argv, char *compile_opts)
       strcpy(buff, "hostmaster.");
       strcat(buff, daemon->authserver);
       daemon->hostmaster = opt_string_alloc(buff);
+    }
+
+  if (!daemon->dhcp_pxe_vendors)
+    {
+      daemon->dhcp_pxe_vendors = opt_malloc(sizeof(struct dhcp_pxe_vendor));
+      daemon->dhcp_pxe_vendors->data = opt_string_alloc(DHCP_PXE_DEF_VENDOR);
+      daemon->dhcp_pxe_vendors->next = NULL;
     }
   
   /* only one of these need be specified: the other defaults to the host-name */

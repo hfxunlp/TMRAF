@@ -8,7 +8,7 @@ config_test:
 		echo "the same configuration"; \
 	else \
 		make configure && touch config_done; \
-	fi ) 
+	fi )
 
 configure:
 	( cd $(SRC_NAME) ; \
@@ -58,5 +58,3 @@ install:
 	$(MAKE) -C $(SRC_NAME) install DESTDIR=""
 
 romfs:
-
-

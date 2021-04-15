@@ -6,7 +6,6 @@ clean:
 install:
 	@echo Nothing to be made.
 
-
 include ../lib.rules
 
 CFLAGS += -DCONFIG_IPV6

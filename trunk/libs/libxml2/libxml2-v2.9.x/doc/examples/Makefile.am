@@ -22,7 +22,7 @@ index.html: examples.xml examples.xsl
 	-cd $(srcdir) && xmllint --valid --noout index.html
 endif
 
-install-data-local: 
+install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(HTML_DIR)
 	-$(INSTALL) -m 0644 $(srcdir)/*.html $(srcdir)/*.c $(srcdir)/*.xml $(srcdir)/*.xsl $(srcdir)/*.res $(DESTDIR)$(HTML_DIR)
 
@@ -96,7 +96,7 @@ xpath1_SOURCES = xpath1.c
 
 xpath2_SOURCES = xpath2.c
 
-valgrind: 
+valgrind:
 	$(MAKE) CHECKER='valgrind' tests
 
 tests: $(check_PROGRAMS)

@@ -169,13 +169,6 @@ default.  In all releases after 1.0.0,
 is the default, and
 .I async
 must be explicitly requested if needed.
-To help make system administrators aware of this change,
-.B exportfs
-will issue a warning if neither
-.I sync
-nor
-.I async
-is specified.
 .TP
 .IR no_wdelay
 This option has no effect if

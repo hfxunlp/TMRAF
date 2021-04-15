@@ -19,7 +19,6 @@ html:
 pdf:
 	for i in $(FILES); do docbook2pdf $$i.sgml; done
 
-
 clean:
 	rm -f wpa_background.8 wpa_cli.8 wpa_gui.8 wpa_passphrase.8 wpa_priv.8 wpa_supplicant.8 eapol_test.8
 	rm -f wpa_supplicant.conf.5

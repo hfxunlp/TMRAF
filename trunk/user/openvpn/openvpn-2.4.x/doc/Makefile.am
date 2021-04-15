@@ -28,4 +28,3 @@ openvpn.8.html: $(srcdir)/openvpn.8
 else
 dist_man_MANS = openvpn.8
 endif
-

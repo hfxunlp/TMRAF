@@ -149,9 +149,10 @@ do_downcall(int k5_fd, uid_t uid, struct authgss_private_data *pd,
 	char    *buf = NULL, *p = NULL, *end = NULL;
 	unsigned int timeout = context_timeout;
 	unsigned int buf_size = 0;
+	pthread_t tid = pthread_self();
 
-	printerr(2, "doing downcall: lifetime_rec=%u acceptor=%.*s\n",
-		lifetime_rec, acceptor->length, acceptor->value);
+	printerr(2, "do_downcall(0x%x): lifetime_rec=%u acceptor=%.*s\n",
+		tid, lifetime_rec, acceptor->length, acceptor->value);
 	buf_size = sizeof(uid) + sizeof(timeout) + sizeof(pd->pd_seq_win) +
 		sizeof(pd->pd_ctx_hndl.length) + pd->pd_ctx_hndl.length +
 		sizeof(context_token->length) + context_token->length +
@@ -177,7 +178,7 @@ do_downcall(int k5_fd, uid_t uid, struct authgss_private_data *pd,
 	return;
 out_err:
 	free(buf);
-	printerr(1, "Failed to write downcall!\n");
+	printerr(1, "do_downcall(0x%x): Failed to write downcall!\n", tid);
 	return;
 }
 
@@ -231,7 +232,7 @@ populate_port(struct sockaddr *sa, const socklen_t salen,
 	switch (sa->sa_family) {
 	case AF_INET:
 		if (s4->sin_port != 0) {
-			printerr(2, "DEBUG: port already set to %d\n",
+			printerr(4, "DEBUG: port already set to %d\n",
 				 ntohs(s4->sin_port));
 			return 1;
 		}
@@ -239,7 +240,7 @@ populate_port(struct sockaddr *sa, const socklen_t salen,
 #ifdef IPV6_SUPPORTED
 	case AF_INET6:
 		if (s6->sin6_port != 0) {
-			printerr(2, "DEBUG: port already set to %d\n",
+			printerr(4, "DEBUG: port already set to %d\n",
 				 ntohs(s6->sin6_port));
 			return 1;
 		}
@@ -548,7 +549,7 @@ krb5_use_machine_creds(struct clnt_info *clp, uid_t uid,
 		uid, tgtname);
 
 	do {
-		gssd_refresh_krb5_machine_credential(clp->servername, NULL,
+		gssd_refresh_krb5_machine_credential(clp->servername,
 						     service, srchost);
 	/*
 	 * Get a list of credential cache names and try each
@@ -730,7 +731,7 @@ handle_krb5_upcall(struct clnt_upcall_info *info)
 	printerr(2, "\n%s: uid %d (%s)\n", __func__, info->uid, clp->relpath);
 
 	process_krb5_upcall(clp, info->uid, clp->krb5_fd, NULL, NULL, NULL);
-	free(info);
+	free_upcall_info(info);
 }
 
 void
@@ -747,8 +748,10 @@ handle_gssd_upcall(struct clnt_upcall_info *info)
 	char			*enctypes = NULL;
 	char			*upcall_str;
 	char			*pbuf = info->lbuf;
+	pthread_t tid = pthread_self();
 
-	printerr(2, "\n%s: '%s' (%s)\n", __func__, info->lbuf, clp->relpath);
+	printerr(2, "\n%s(0x%x): '%s' (%s)\n", __func__, tid, 
+		info->lbuf, clp->relpath);
 
 	upcall_str = strdup(info->lbuf);
 	if (upcall_str == NULL) {
@@ -830,6 +833,6 @@ handle_gssd_upcall(struct clnt_upcall_info *info)
 out:
 	free(upcall_str);
 out_nomem:
-	free(info);
+	free_upcall_info(info);
 	return;
 }

@@ -9,7 +9,7 @@
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
-# are also available at https://curl.haxx.se/docs/copyright.html.
+# are also available at https://curl.se/docs/copyright.html.
 #
 # You may opt to use, copy, modify, merge, publish, distribute and/or sell
 # copies of the Software, and permit persons to whom the Software is
@@ -44,8 +44,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/include        \
               -I$(top_srcdir)/lib
 endif
 
-EXTRA_DIST = test307.pl test610.pl test613.pl test1013.pl \
-  test1022.pl Makefile.inc notexists.pl CMakeLists.txt mk-lib1521.pl
+EXTRA_DIST = test307.pl test610.pl test613.pl test1013.pl test1022.pl   \
+  Makefile.inc notexists.pl CMakeLists.txt mk-lib1521.pl .checksrc
 
 CFLAG_CURL_SYMBOL_HIDING = @CFLAG_CURL_SYMBOL_HIDING@
 
@@ -129,7 +129,6 @@ libstubgss_la_SOURCES = stub_gssapi.c stub_gssapi.h
 libstubgss_la_LIBADD =
 libstubgss_la_DEPENDENCIES =
 endif
-
 
 lib1521.c: $(top_srcdir)/tests/libtest/mk-lib1521.pl $(top_srcdir)/include/curl/curl.h
 	@PERL@ $(top_srcdir)/tests/libtest/mk-lib1521.pl < $(top_srcdir)/include/curl/curl.h > lib1521.c

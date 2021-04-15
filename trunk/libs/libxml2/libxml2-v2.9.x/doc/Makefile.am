@@ -309,7 +309,6 @@ libxml2-api.xml libxml2-refs.xml ../libxml2.syms: apibuild.py symbols.xml syms.x
 	($(XSLTPROC) -o ../libxml2.syms $(srcdir)/syms.xsl $(srcdir)/symbols.xml)
 	-@(cd .. ; $(MAKE) rebuild_testapi)
 
-
 xmllint.1: xmllint.xml
 	-@($(XSLTPROC) --nonet xmllint.xml)
 
@@ -333,11 +332,11 @@ clean-local:
 	rm -f *~ *.bak *.hierarchy *.signals *-unused.txt
 
 maintainer-clean-local: clean-local
-	rm -rf libxml-decl-list.txt libxml-decl.txt 
+	rm -rf libxml-decl-list.txt libxml-decl.txt
 
 rebuild: api docs
 
-install-data-local: 
+install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(HTML_DIR)
 	-$(INSTALL) -m 0644 $(srcdir)/xml.html $(srcdir)/encoding.html $(srcdir)/FAQ.html $(srcdir)/structure.gif $(srcdir)/DOM.gif $(srcdir)/smallfootonly.gif $(srcdir)/redhat.gif $(srcdir)/libxml.gif $(srcdir)/w3c.png $(srcdir)/Libxml2-Logo-180x168.gif $(srcdir)/Libxml2-Logo-90x34.gif $(DESTDIR)$(HTML_DIR)
 	$(MKDIR_P) $(DESTDIR)$(HTML_DIR)/html

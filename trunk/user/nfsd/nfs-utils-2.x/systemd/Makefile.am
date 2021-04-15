@@ -20,6 +20,12 @@ unit_files += \
     nfs-idmapd.service
 endif
 
+if CONFIG_NFSV4SERVER
+unit_files += \
+    nfsv4-exportd.service \
+    nfsv4-server.service
+endif
+
 if CONFIG_NFSV41
 unit_files += \
     nfs-blkmap.service

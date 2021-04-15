@@ -102,7 +102,6 @@ endif
 endif # COMPILE_SMALL
 endif # COMPILE_DEBUG
 
-
 ifneq ($(findstring clang,$(CC)),)
 LTC_CFLAGS += -Wno-typedef-redefinition -Wno-tautological-compare -Wno-builtin-requires-header -Wno-missing-field-initializers
 endif
@@ -112,7 +111,6 @@ endif
 ifeq ($(PLATFORM), Darwin)
 LTC_CFLAGS += -Wno-nullability-completeness
 endif
-
 
 GIT_VERSION := $(shell { [ -e .git ] && which git 2>/dev/null 1>&2 ; } && { printf git- ; git describe --tags --always --dirty ; } || echo $(VERSION))
 ifneq ($(GIT_VERSION),)
@@ -178,10 +176,8 @@ else
 GROUP=wheel
 endif
 
-
 #The first rule is also the default rule and builds the libtomcrypt library.
 library: $(call print-help,library,Builds the library) $(LIBNAME)
-
 
 # List of objects to compile (all goes to libtomcrypt.a)
 OBJECTS=src/ciphers/aes/aes.o src/ciphers/aes/aes_enc.o src/ciphers/anubis.o src/ciphers/blowfish.o \
@@ -387,7 +383,6 @@ docs: $(call print-help,docs,Builds the Developer Manual)
 
 doc/crypt.pdf: $(call print-help,doc/crypt.pdf,Builds the Developer Manual)
 	$(MAKE) -C doc/ crypt.pdf V=$(V)
-
 
 install_all: $(call print-help,install_all,Install everything - library bins docs tests) install install_bins install_docs install_test
 

@@ -16,4 +16,3 @@ nfsdcltrack_SOURCES = nfsdcltrack.c sqlite.c
 nfsdcltrack_LDADD = ../../support/nfs/libnfs.la $(LIBSQLITE) $(LIBCAP)
 
 MAINTAINERCLEANFILES = Makefile.in
-

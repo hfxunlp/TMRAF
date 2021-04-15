@@ -14,7 +14,7 @@ echo "-------------COPY-FILES---------------"
 
 if [ -d "$ROOTDIR/trunk/user/" ] ; then
 
-	# cleaning before bump openvpn to 2.4.5, nfs-utils to 2.5.1, wpa_supplicant to 2.6, dnsmasq to 2.82, libxml2 to 2.9.10, libcurl to 7.72.0, dropbear to 2019.78.
+	# cleaning before bump openvpn to 2.4.5, nfs-utils to 2.5.3, wpa_supplicant to 2.9, dnsmasq to 2.85, libxml2 to 2.9.10, libcurl to 7.76.1, dropbear to 2019.78.
 	rm -fr "$DESTDIR/trunk/user/openvpn/openvpn-2.4.x/"
 	rm -fr "$DESTDIR/trunk/user/nfsd/nfs-utils-1.2.3/"
 	rm -fr "$DESTDIR/trunk/user/wpa_supplicant/"

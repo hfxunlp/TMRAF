@@ -838,6 +838,7 @@ struct export_features *get_export_features(void)
 	close(fd);
 	if (c == -1)
 		goto err;
+	buf[c] = 0;
 	c = sscanf(buf, "%x %x", &ef.flags, &ef.secinfo_flags);
 	if (c != 2)
 		goto err;

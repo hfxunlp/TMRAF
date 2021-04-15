@@ -21,4 +21,3 @@ $(LIBTEST_S): $(OBJECTS)
 
 clean:
 	rm -f *.o *.a
-

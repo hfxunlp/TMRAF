@@ -6,7 +6,6 @@ clean:
 install:
 	@echo Nothing to be made.
 
-
 include ../lib.rules
 
 CFLAGS += -DCONFIG_INTERNAL_LIBTOMMATH
@@ -32,7 +31,6 @@ LIB_OBJS= \
 	tlsv1_server_read.o \
 	tlsv1_server_write.o \
 	x509v3.o
-
 
 libtls.a: $(LIB_OBJS)
 	$(AR) crT $@ $?
