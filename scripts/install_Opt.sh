@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # DESTDIR is your target project's dir
-DESTDIR=/media/Storage/workspace/router/rt-n56u
+DESTDIR=~/router/rt-n56u
 
 ROOTDIR=`pwd`
 
