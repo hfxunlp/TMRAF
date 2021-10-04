@@ -16,7 +16,7 @@ exportd_SOURCES = exportd.c
 exportd_LDADD = ../../support/export/libexport.a \
 			../../support/nfs/libnfs.la \
 			../../support/misc/libmisc.a \
-			$(OPTLIBS) $(LIBBLKID) $(LIBPTHREAD)
+			$(OPTLIBS) $(LIBBLKID) $(LIBPTHREAD) -luuid
 
 exportd_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS) \
 		-I$(top_srcdir)/support/export
@@ -42,6 +42,7 @@ uninstall-hook:
 	    rm -f $(NFSPREFIX)$(KPREFIX)$$p$(EXEEXT) ;\
 	  done)
 
+
 # XXX This makes some assumptions about what automake does.
 # XXX But there is no install-man-hook or install-man-local.
 install-man: install-man8 install-man-links
@@ -61,3 +62,4 @@ uninstall-man-links:
 	    inst=`echo $$m | sed -e 's/man$$/8/'`; \
 	    rm -f $(NFSPREFIX)$$inst ; \
 	  done)
+

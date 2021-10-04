@@ -14,6 +14,7 @@
 
 @SET_MAKE@
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -128,7 +129,7 @@ sm_notify_DEPENDENCIES = ../../support/nsm/libnsm.a \
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
-am__v_lt_1 =
+am__v_lt_1 = 
 am_statd_OBJECTS = callback.$(OBJEXT) notlist.$(OBJEXT) misc.$(OBJEXT) \
 	monitor.$(OBJEXT) hostname.$(OBJEXT) simu.$(OBJEXT) \
 	stat.$(OBJEXT) statd.$(OBJEXT) svc_run.$(OBJEXT) \
@@ -173,11 +174,11 @@ am__v_P_1 = :
 AM_V_GEN = $(am__v_GEN_@AM_V@)
 am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
 am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 =
+am__v_GEN_1 = 
 AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
-am__v_at_1 =
+am__v_at_1 = 
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/support/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
@@ -197,7 +198,7 @@ LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CC = $(am__v_CC_@AM_V@)
 am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
 am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 =
+am__v_CC_1 = 
 CCLD = $(CC)
 LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -205,7 +206,7 @@ LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 =
+am__v_CCLD_1 = 
 SOURCES = $(sm_notify_SOURCES) $(statd_SOURCES)
 DIST_SOURCES = $(sm_notify_SOURCES) $(statd_SOURCES)
 am__can_run_installinfo = \
@@ -534,11 +535,11 @@ clean-sbinPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
-sm-notify$(EXEEXT): $(sm_notify_OBJECTS) $(sm_notify_DEPENDENCIES) $(EXTRA_sm_notify_DEPENDENCIES)
+sm-notify$(EXEEXT): $(sm_notify_OBJECTS) $(sm_notify_DEPENDENCIES) $(EXTRA_sm_notify_DEPENDENCIES) 
 	@rm -f sm-notify$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(sm_notify_OBJECTS) $(sm_notify_LDADD) $(LIBS)
 
-statd$(EXEEXT): $(statd_OBJECTS) $(statd_DEPENDENCIES) $(EXTRA_statd_DEPENDENCIES)
+statd$(EXEEXT): $(statd_OBJECTS) $(statd_DEPENDENCIES) $(EXTRA_statd_DEPENDENCIES) 
 	@rm -f statd$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(statd_OBJECTS) $(statd_LDADD) $(LIBS)
 install-dist_sbinSCRIPTS: $(dist_sbin_SCRIPTS)

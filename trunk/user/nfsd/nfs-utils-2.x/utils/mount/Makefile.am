@@ -52,6 +52,7 @@ uninstall-hook:
 	(cd $(DESTDIR)$(sbindir) && \
 	    rm -f mount.nfs4 umount.nfs umount.nfs4)
 
+
 install-man-links:
 	(cd $(DESTDIR)$(man8dir) && \
 	  for m in $(man8_MANS) $(dist_man8_MANS) $(nodist_man8_MANS); do \
@@ -75,3 +76,4 @@ uninstall-man-links:
 	    inst=`echo $$m | sed -e 's/man$$/5/'`; \
 	    rm -f $$inst ; \
 	  done)
+

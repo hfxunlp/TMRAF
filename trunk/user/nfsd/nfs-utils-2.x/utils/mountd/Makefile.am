@@ -18,7 +18,7 @@ mountd_LDADD = ../../support/export/libexport.a \
 	       ../../support/nfs/libnfs.la \
 	       ../../support/misc/libmisc.a \
 	       $(OPTLIBS) \
-	       $(LIBBSD) $(LIBWRAP) $(LIBNSL) $(LIBBLKID) $(LIBTIRPC) \
+	       $(LIBBSD) $(LIBWRAP) $(LIBNSL) $(LIBBLKID) -luuid $(LIBTIRPC) \
 	       $(LIBPTHREAD)
 mountd_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS) \
 		  -I$(top_builddir)/support/include \
@@ -45,6 +45,7 @@ uninstall-hook:
 	    rm -f $(RPCPREFIX)$(KPREFIX)$$p$(EXEEXT) ;\
 	  done)
 
+
 # XXX This makes some assumptions about what automake does.
 # XXX But there is no install-man-hook or install-man-local.
 install-man: install-man8 install-man-links
@@ -64,3 +65,4 @@ uninstall-man-links:
 	    inst=`echo $$m | sed -e 's/man$$/8/'`; \
 	    rm -f $(RPCPREFIX)$$inst ; \
 	  done)
+

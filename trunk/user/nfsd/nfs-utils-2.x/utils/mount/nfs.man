@@ -552,7 +552,7 @@ detailed discussion of these trade-offs.
 .BR fsc " / " nofsc
 Enable/Disables the cache of (read-only) data pages to the local disk 
 using the FS-Cache facility. See cachefilesd(8) 
-and <kernel_soruce>/Documentation/filesystems/caching
+and <kernel_source>/Documentation/filesystems/caching
 for detail on how to configure the FS-Cache facility.
 Default value is nofsc.
 .SS "Options for NFS versions 2 and 3 only"
@@ -564,7 +564,7 @@ The
 .I netid
 determines the transport that is used to communicate with the NFS
 server.  Available options are
-.BR udp ", " udp6 ", "tcp ", " tcp6 ", and " rdma .
+.BR udp ", " udp6 ", "tcp ", " tcp6 ", " rdma ", and " rdma6 .
 Those which end in
 .B 6
 use IPv6 addresses and are only available if support for TI-RPC is
@@ -812,7 +812,7 @@ The
 .I netid
 determines the transport that is used to communicate with the NFS
 server.  Supported options are
-.BR tcp ", " tcp6 ", and " rdma .
+.BR tcp ", " tcp6 ", " rdma ", and " rdma6 .
 .B tcp6
 use IPv6 addresses and is only available if support for TI-RPC is
 built in. Both others use IPv4 addresses.

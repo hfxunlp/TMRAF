@@ -1,16 +1,1 @@
-<grammar xmlns="http://relaxng.org/ns/structure/1.0" >
-  <start>
-    <element name="foo">
-      <attribute>
-        <choice>
-          <name>alpha</name>
-          <name>bravo</name>
-        </choice>
-        <choice>
-          <value>none</value>
-          <value>all</value>
-        </choice>
-      </attribute>
-    </element>
-  </start>
-</grammar>
+ambig_name-class.xml

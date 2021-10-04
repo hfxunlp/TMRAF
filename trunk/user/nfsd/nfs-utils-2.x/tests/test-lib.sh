@@ -56,5 +56,5 @@ start_statd() {
 
 # shut down statd
 kill_statd() {
-	kill `cat /var/run/rpc.statd.pid`
+	kill `cat /run/rpc.statd.pid`
 }

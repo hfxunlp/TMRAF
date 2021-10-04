@@ -132,11 +132,21 @@ but on the server, this will resolve to the path
 .B exportd
 Recognized values:
 .BR threads ,
+.BR cache-use-upaddr ,
+.BR ttl ,
 .BR state-directory-path
 
 See
 .BR exportd (8)
 for details.
+
+Note that setting 
+.B "\[dq]debug = auth\[dq]"
+for
+.B exportd
+is equivalent to providing the
+.B \-\-log\-auth
+option.
 
 .TP
 .B nfsdcltrack
@@ -188,6 +198,8 @@ Recognized values:
 .BR port ,
 .BR threads ,
 .BR reverse-lookup ,
+.BR cache-use-upaddr ,
+.BR ttl ,
 .BR state-directory-path ,
 .BR ha-callout .
 
@@ -196,6 +208,14 @@ These, together with the protocol and version values in the
 section, are used to configure mountd.  See
 .BR rpc.mountd (8)
 for details.
+
+Note that setting 
+.B "\[dq]debug = auth\[dq]"
+for
+.B mountd
+is equivalent to providing the
+.B \-\-log\-auth
+option.
 
 The
 .B state-directory-path
@@ -253,7 +273,8 @@ Recognized values:
 .BR rpc-timeout ,
 .BR keytab-file ,
 .BR cred-cache-directory ,
-.BR preferred-realm .
+.BR preferred-realm ,
+.BR set-home .
 
 See
 .BR rpc.gssd (8)

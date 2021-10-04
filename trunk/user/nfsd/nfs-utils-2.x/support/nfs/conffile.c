@@ -133,6 +133,39 @@ conf_hash(const char *s)
 }
 
 /*
+ * free all the component parts of a conf_binding struct
+ */
+static void free_confbind(struct conf_binding *cb)
+{
+	if (!cb)
+		return;
+	if (cb->section)
+		free(cb->section);
+	if (cb->arg)
+		free(cb->arg);
+	if (cb->tag)
+		free(cb->tag);
+	if (cb->value)
+		free(cb->value);
+	free(cb);
+}
+
+static void free_conftrans(struct conf_trans *ct)
+{
+	if (!ct)
+		return;
+	if (ct->section)
+		free(ct->section);
+	if (ct->arg)
+		free(ct->arg);
+	if (ct->tag)
+		free(ct->tag);
+	if (ct->value)
+		free(ct->value);
+	free(ct);
+}
+
+/*
  * Insert a tag-value combination from LINE (the equal sign is at POS)
  */
 static int
@@ -147,11 +180,7 @@ conf_remove_now(const char *section, const char *tag)
 				&& strcasecmp(cb->tag, tag) == 0) {
 			LIST_REMOVE(cb, link);
 			xlog(LOG_INFO,"[%s]:%s->%s removed", section, tag, cb->value);
-			free(cb->section);
-			free(cb->arg);
-			free(cb->tag);
-			free(cb->value);
-			free(cb);
+			free_confbind(cb);
 			return 0;
 		}
 	}
@@ -171,11 +200,7 @@ conf_remove_section_now(const char *section)
 			unseen = 0;
 			LIST_REMOVE(cb, link);
 			xlog(LOG_INFO, "[%s]:%s->%s removed", section, cb->tag, cb->value);
-			free(cb->section);
-			free(cb->arg);
-			free(cb->tag);
-			free(cb->value);
-			free(cb);
+			free_confbind(cb);
 			}
 		}
 	return unseen;
@@ -571,11 +596,7 @@ static void conf_free_bindings(void)
 		for (; cb; cb = next) {
 			next = LIST_NEXT(cb, link);
 			LIST_REMOVE(cb, link);
-			free(cb->section);
-			free(cb->arg);
-			free(cb->tag);
-			free(cb->value);
-			free(cb);
+			free_confbind(cb);
 		}
 		LIST_INIT(&conf_bindings[i]);
 	}
@@ -774,11 +795,7 @@ conf_cleanup(void)
 	for (node = TAILQ_FIRST(&conf_trans_queue); node; node = next) {
 		next = TAILQ_NEXT(node, link);
 		TAILQ_REMOVE (&conf_trans_queue, node, link);
-		if (node->section) free(node->section);
-		if (node->arg) free(node->arg);
-		if (node->tag) free(node->tag);
-		if (node->value) free(node->value);
-		free (node);
+		free_conftrans(node);
 	}
 	TAILQ_INIT(&conf_trans_queue);
 }
@@ -872,6 +889,29 @@ conf_get_str_with_def(const char *section, const char *tag, char *def)
 	if (!result)
 		return def;
 	return result;
+}
+
+/*
+ * Retrieve an entry without interpreting its contents
+ */
+char *
+conf_get_entry(const char *section, const char *arg, const char *tag)
+{
+	struct conf_binding *cb;
+
+	cb = LIST_FIRST (&conf_bindings[conf_hash (section)]);
+	for (; cb; cb = LIST_NEXT (cb, link)) {
+		if (strcasecmp(section, cb->section) != 0)
+			continue;
+		if (arg && (cb->arg == NULL || strcasecmp(arg, cb->arg) != 0))
+			continue;
+		if (!arg && cb->arg)
+			continue;
+		if (strcasecmp(tag, cb->tag) != 0)
+			continue;
+		return cb->value;
+	}
+	return 0;
 }
 
 /*
@@ -1144,14 +1184,7 @@ conf_set(int transaction, const char *section, const char *arg,
 	return 0;
 
 fail:
-	if (node->tag)
-		free(node->tag);
-	if (node->arg)
-		free(node->arg);
-	if (node->section)
-		free(node->section);
-	if (node)
-		free(node);
+	free_conftrans(node);
 	return 1;
 }
 
@@ -1177,10 +1210,7 @@ conf_remove(int transaction, const char *section, const char *tag)
 	return 0;
 
 fail:
-	if (node && node->section)
-		free (node->section);
-	if (node)
-		free (node);
+	free_conftrans(node);
 	return 1;
 }
 
@@ -1201,8 +1231,7 @@ conf_remove_section(int transaction, const char *section)
 	return 0;
 
 fail:
-	if (node)
-		free(node);
+	free_conftrans(node);
 	return 1;
 }
 
@@ -1233,15 +1262,7 @@ conf_end(int transaction, int commit)
 				}
 			}
 			TAILQ_REMOVE (&conf_trans_queue, node, link);
-			if (node->section)
-				free(node->section);
-			if (node->arg)
-				free(node->arg);
-			if (node->tag)
-				free(node->tag);
-			if (node->value)
-				free(node->value);
-			free (node);
+			free_conftrans(node);
 		}
 	}
 	return 0;

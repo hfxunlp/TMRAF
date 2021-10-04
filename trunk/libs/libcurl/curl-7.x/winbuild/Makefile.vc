@@ -50,6 +50,7 @@ CURL_OBJS=$(CURL_CFILES:tool_hugehelp.c=)
 
 CURL_OBJS=$(CURL_OBJS:.c=.obj)
 
+
 # backwards compatible check for USE_SSPI
 !IFDEF USE_SSPI
 ENABLE_SSPI = $(USE_SSPI)

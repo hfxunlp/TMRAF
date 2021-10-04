@@ -28,8 +28,6 @@
 
 extern int reverse_resolve;
 
-extern struct state_paths rmtab;
-
 /* If new path is a link do not destroy it but place the
  * file where the link points.
  */

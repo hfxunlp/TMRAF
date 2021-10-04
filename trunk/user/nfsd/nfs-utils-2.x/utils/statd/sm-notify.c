@@ -901,7 +901,7 @@ find_host(uint32_t xid)
 }
 
 /*
- * Record pid in /var/run/sm-notify.pid
+ * Record pid in /run/sm-notify.pid
  * This file should remain until a reboot, even if the
  * program exits.
  * If file already exists, fail.
@@ -913,7 +913,7 @@ static int record_pid(void)
 	int fd;
 
 	(void)snprintf(pid, sizeof(pid), "%d\n", (int)getpid());
-	fd = open("/var/run/sm-notify.pid", O_CREAT|O_EXCL|O_WRONLY, 0600);
+	fd = open("/run/sm-notify.pid", O_CREAT|O_EXCL|O_WRONLY, 0600);
 	if (fd < 0)
 		return 0;
 

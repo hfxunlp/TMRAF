@@ -414,6 +414,7 @@ libcurl_a_DEPENDENCIES := $(strip $(CSOURCES) $(HHEADERS))
 
 RESOURCE = libcurl.res
 
+
 all: $(libcurl_a_LIBRARY) $(libcurl_dll_LIBRARY)
 
 $(libcurl_a_LIBRARY): $(libcurl_a_OBJECTS) $(libcurl_a_DEPENDENCIES)

@@ -135,7 +135,7 @@ gssd_DEPENDENCIES = ../../support/nfs/libnfs.la $(am__DEPENDENCIES_1) \
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
-am__v_lt_1 =
+am__v_lt_1 = 
 gssd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(gssd_CFLAGS) $(CFLAGS) \
 	$(gssd_LDFLAGS) $(LDFLAGS) -o $@
@@ -163,11 +163,11 @@ am__v_P_1 = :
 AM_V_GEN = $(am__v_GEN_@AM_V@)
 am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
 am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 =
+am__v_GEN_1 = 
 AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
-am__v_at_1 =
+am__v_at_1 = 
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/support/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
@@ -199,7 +199,7 @@ LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CC = $(am__v_CC_@AM_V@)
 am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
 am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 =
+am__v_CC_1 = 
 CCLD = $(CC)
 LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -207,7 +207,7 @@ LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 =
+am__v_CCLD_1 = 
 SOURCES = $(gssd_SOURCES) $(svcgssd_SOURCES)
 DIST_SOURCES = $(gssd_SOURCES) $(svcgssd_SOURCES)
 am__can_run_installinfo = \
@@ -610,11 +610,11 @@ clean-sbinPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
-gssd$(EXEEXT): $(gssd_OBJECTS) $(gssd_DEPENDENCIES) $(EXTRA_gssd_DEPENDENCIES)
+gssd$(EXEEXT): $(gssd_OBJECTS) $(gssd_DEPENDENCIES) $(EXTRA_gssd_DEPENDENCIES) 
 	@rm -f gssd$(EXEEXT)
 	$(AM_V_CCLD)$(gssd_LINK) $(gssd_OBJECTS) $(gssd_LDADD) $(LIBS)
 
-svcgssd$(EXEEXT): $(svcgssd_OBJECTS) $(svcgssd_DEPENDENCIES) $(EXTRA_svcgssd_DEPENDENCIES)
+svcgssd$(EXEEXT): $(svcgssd_OBJECTS) $(svcgssd_DEPENDENCIES) $(EXTRA_svcgssd_DEPENDENCIES) 
 	@rm -f svcgssd$(EXEEXT)
 	$(AM_V_CCLD)$(svcgssd_LINK) $(svcgssd_OBJECTS) $(svcgssd_LDADD) $(LIBS)
 
@@ -1301,6 +1301,7 @@ uninstall-am: uninstall-man uninstall-sbinPROGRAMS
 	uninstall-man uninstall-man8 uninstall-sbinPROGRAMS
 
 .PRECIOUS: Makefile
+
 
 #######################################################################
 # The following allows the current practice of having

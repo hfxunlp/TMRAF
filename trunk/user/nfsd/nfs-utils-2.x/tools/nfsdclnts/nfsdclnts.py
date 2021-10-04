@@ -223,6 +223,7 @@ def nfsd4_show():
 
     global verbose
     verbose = False
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     if args.verbose:
         verbose = True
 

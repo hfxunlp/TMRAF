@@ -312,6 +312,7 @@ check_PROGRAMS := $(patsubst %,%.nlm,$(strip $(check_PROGRAMS)))
 
 .PRECIOUS: $(OBJDIR)/%.o $(OBJDIR)/%.def $(OBJDIR)/%.xdc
 
+
 all: prebuild $(check_PROGRAMS)
 
 prebuild: $(OBJDIR) $(OBJDIR)/version.inc

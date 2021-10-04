@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-AC_INIT([linux nfs-utils],[2.5.3],[linux-nfs@vger.kernel.org],[nfs-utils])
+AC_INIT([linux nfs-utils],[2.5.4],[linux-nfs@vger.kernel.org],[nfs-utils])
 AC_CANONICAL_BUILD([])
 AC_CANONICAL_HOST([])
 AC_CONFIG_MACRO_DIR(aclocal)
@@ -334,6 +334,13 @@ AC_CHECK_LIB([crypt], [crypt], [LIBCRYPT="-lcrypt"])
 AC_CHECK_HEADERS([sched.h], [], [])
 AC_CHECK_FUNCS([unshare fstatat statx], [] , [])
 AC_LIBPTHREAD([])
+
+# rpc/rpc.h can come from the glibc or from libtirpc
+nfsutils_save_CPPFLAGS="${CPPFLAGS}"
+CPPFLAGS="${CPPFLAGS} ${TIRPC_CFLAGS}"
+AC_CHECK_HEADER(rpc/rpc.h, ,
+                AC_MSG_ERROR([Header file rpc/rpc.h not found - maybe try building with --enable-tirpc]))
+CPPFLAGS="${nfsutils_save_CPPFLAGS}"
 
 if test "$enable_nfsv4" = yes; then
   dnl check for libevent libraries and headers

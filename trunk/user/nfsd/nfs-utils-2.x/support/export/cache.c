@@ -42,13 +42,6 @@
 #include "blkid/blkid.h"
 #endif
 
-/*
- * Invoked by RPC service loop
- */
-void	cache_set_fds(fd_set *fdset);
-int	cache_process_req(fd_set *readfds);
-void cache_process_loop(void);
-
 enum nfsd_fsid {
 	FSID_DEV = 0,
 	FSID_NUM,
@@ -96,7 +89,6 @@ static bool path_lookup_error(int err)
  * Record is terminated with newline.
  *
  */
-static int cache_export_ent(char *buf, int buflen, char *domain, struct exportent *exp, char *path);
 
 #define INITIAL_MANAGED_GROUPS 100
 
@@ -114,6 +106,7 @@ static void auth_unix_ip(int f)
 	char class[20];
 	char ipaddr[INET6_ADDRSTRLEN + 1];
 	char *client = NULL;
+	struct addrinfo *ai = NULL;
 	struct addrinfo *tmp = NULL;
 	char buf[RPC_CHAN_BUF_SIZE], *bp;
 	int blen;
@@ -139,21 +132,26 @@ static void auth_unix_ip(int f)
 
 	auth_reload();
 
-	/* addr is a valid, interesting address, find the domain name... */
-	if (!use_ipaddr) {
-		struct addrinfo *ai = NULL;
-
-		ai = client_resolve(tmp->ai_addr);
-		if (ai) {
-			client = client_compose(ai);
-			nfs_freeaddrinfo(ai);
-		}
+	/* addr is a valid address, find the domain name... */
+	ai = client_resolve(tmp->ai_addr);
+	if (ai) {
+		client = client_compose(ai);
+		nfs_freeaddrinfo(ai);
 	}
+	if (!client)
+		xlog(D_AUTH, "failed authentication for IP %s", ipaddr);
+	else if	(!use_ipaddr)
+		xlog(D_AUTH, "successful authentication for IP %s as %s",
+		     ipaddr, *client ? client : "DEFAULT");
+	else
+		xlog(D_AUTH, "successful authentication for IP %s",
+			     ipaddr);
+
 	bp = buf; blen = sizeof(buf);
 	qword_add(&bp, &blen, "nfsd");
 	qword_add(&bp, &blen, ipaddr);
-	qword_adduint(&bp, &blen, time(0) + DEFAULT_TTL);
-	if (use_ipaddr) {
+	qword_adduint(&bp, &blen, time(0) + default_ttl);
+	if (use_ipaddr && client) {
 		memmove(ipaddr + 1, ipaddr, strlen(ipaddr) + 1);
 		ipaddr[0] = '$';
 		qword_add(&bp, &blen, ipaddr);
@@ -225,7 +223,7 @@ static void auth_unix_gid(int f)
 
 	bp = buf; blen = sizeof(buf);
 	qword_adduint(&bp, &blen, uid);
-	qword_adduint(&bp, &blen, time(0) + DEFAULT_TTL);
+	qword_adduint(&bp, &blen, time(0) + default_ttl);
 	if (rv >= 0) {
 		qword_adduint(&bp, &blen, ngroups);
 		for (i=0; i<ngroups; i++)
@@ -873,18 +871,13 @@ static void nfsd_fh(int f)
 	    !is_mountpoint(found->e_mountpoint[0]?
 			   found->e_mountpoint:
 			   found->e_path)) {
-		/* Cannot export this yet 
+		/* Cannot export this yet
 		 * should log a warning, but need to rate limit
 		   xlog(L_WARNING, "%s not exported as %d not a mountpoint",
 		   found->e_path, found->e_mountpoint);
 		 */
 		/* FIXME we need to make sure we re-visit this later */
 		goto out;
-	} else if (cache_export_ent(buf, sizeof(buf), dom, found, found_path) < 0) {
-		if (!path_lookup_error(errno))
-			goto out;
-		/* The kernel is saying the path is unexportable */
-		found = NULL;
 	}
 
 	bp = buf; blen = sizeof(buf);
@@ -905,6 +898,8 @@ static void nfsd_fh(int f)
 	qword_addeol(&bp, &blen);
 	if (blen <= 0 || cache_write(f, buf, bp - buf) != bp - buf)
 		xlog(L_ERROR, "nfsd_fh: error writing reply");
+	if (!found)
+		xlog(D_AUTH, "denied access to %s", *dom == '$' ? dom+1 : dom);
 out:
 	if (found_path)
 		free(found_path);
@@ -966,7 +961,7 @@ static int dump_to_cache(int f, char *buf, int blen, char *domain,
 	ssize_t err;
 
 	if (ttl <= 1)
-		ttl = DEFAULT_TTL;
+		ttl = default_ttl;
 
 	qword_add(&bp, &blen, domain);
 	qword_add(&bp, &blen, path);
@@ -986,7 +981,8 @@ static int dump_to_cache(int f, char *buf, int blen, char *domain,
 		write_secinfo(&bp, &blen, exp, flag_mask);
 		if (exp->e_uuid == NULL || different_fs) {
 			char u[16];
-			if (uuid_by_path(path, 0, 16, u)) {
+			if ((exp->e_flags & flag_mask & NFSEXP_FSID) == 0 &&
+			    uuid_by_path(path, 0, 16, u)) {
 				qword_add(&bp, &blen, "uuid");
 				qword_addhex(&bp, &blen, u, 16);
 			}
@@ -996,8 +992,13 @@ static int dump_to_cache(int f, char *buf, int blen, char *domain,
 			qword_add(&bp, &blen, "uuid");
 			qword_addhex(&bp, &blen, u, 16);
 		}
-	} else
+		xlog(D_AUTH, "granted access to %s for %s",
+		     path, *domain == '$' ? domain+1 : domain);
+	} else {
 		qword_adduint(&bp, &blen, now + ttl);
+		xlog(D_AUTH, "denied access to %s for %s",
+		     path, *domain == '$' ? domain+1 : domain);
+	}
 	qword_addeol(&bp, &blen);
 	if (blen <= 0) {
 		errno = ENOBUFS;
@@ -1530,6 +1531,7 @@ void cache_process_loop(void)
 	for (;;) {
 
 		cache_set_fds(&readfds);
+		v4clients_set_fds(&readfds);
 
 		selret = select(FD_SETSIZE, &readfds,
 				(void *) 0, (void *) 0, (struct timeval *) 0);
@@ -1545,6 +1547,7 @@ void cache_process_loop(void)
 
 		default:
 			cache_process_req(&readfds);
+			v4clients_process(&readfds);
 		}
 	}
 }

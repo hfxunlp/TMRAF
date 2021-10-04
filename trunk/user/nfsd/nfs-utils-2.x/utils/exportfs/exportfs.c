@@ -52,13 +52,6 @@ static void release_lockfile(void);
 static const char *lockfile = EXP_LOCKFILE;
 static int _lockfd = -1;
 
-struct state_paths etab;
-
-static ssize_t exportfs_write(int fd, const char *buf, size_t len)
-{
-	return nfsd_path_write(fd, buf, len);
-}
-
 /*
  * If we aren't careful, changes made by exportfs can be lost
  * when multiple exports process run at once:
@@ -193,7 +186,7 @@ main(int argc, char **argv)
 
 	if (optind == argc && ! f_all) {
 		if (force_flush) {
-			cache_flush(1);
+			cache_flush();
 			free_state_path_names(&etab);
 			return 0;
 		} else {
@@ -240,7 +233,7 @@ main(int argc, char **argv)
 				unexportfs(argv[i], f_verbose);
 	}
 	xtab_export_write();
-	cache_flush(force_flush);
+	cache_flush();
 	free_state_path_names(&etab);
 	export_freeall();
 
@@ -383,7 +376,7 @@ unexportfs_parsed(char *hname, char *path, int verbose)
 	 * so need to deal with it.
 	*/
 	size_t nlen = strlen(path);
-	while (path[nlen - 1] == '/')
+	while ((nlen > 1) && (path[nlen - 1] == '/'))
 		nlen--;
 
 	for (exp = exportlist[htype].p_head; exp; exp = exp->m_next) {
@@ -510,33 +503,6 @@ static int can_test(void)
 	return 1;
 }
 
-static int test_export(nfs_export *exp, int with_fsid)
-{
-	char *path = exp->m_export.e_path;
-	int flags = exp->m_export.e_flags | (with_fsid ? NFSEXP_FSID : 0);
-	/* beside max path, buf size should take protocol str into account */
-	char buf[NFS_MAXPATHLEN+1+64] = { 0 };
-	char *bp = buf;
-	int len = sizeof(buf);
-	int fd, n;
-
-	n = snprintf(buf, len, "-test-client- ");
-	bp += n;
-	len -= n;
-	qword_add(&bp, &len, path);
-	if (len < 1)
-		return 0;
-	snprintf(bp, len, " 3 %d 65534 65534 0\n", flags);
-	fd = open("/proc/net/rpc/nfsd.export/channel", O_WRONLY);
-	if (fd < 0)
-		return 0;
-	n = exportfs_write(fd, buf, strlen(buf));
-	close(fd);
-	if (n < 0)
-		return 0;
-	return 1;
-}
-
 static void
 validate_export(nfs_export *exp)
 {
@@ -568,12 +534,12 @@ validate_export(nfs_export *exp)
 
 	if ((exp->m_export.e_flags & NFSEXP_FSID) || exp->m_export.e_uuid ||
 	    fs_has_fsid) {
-		if ( !test_export(exp, 1)) {
+		if ( !export_test(&exp->m_export, 1)) {
 			xlog(L_ERROR, "%s does not support NFS export", path);
 			return;
 		}
-	} else if ( !test_export(exp, 0)) {
-		if (test_export(exp, 1))
+	} else if ( !export_test(&exp->m_export, 0)) {
+		if (export_test(&exp->m_export, 1))
 			xlog(L_ERROR, "%s requires fsid= for NFS export", path);
 		else
 			xlog(L_ERROR, "%s does not support NFS export", path);

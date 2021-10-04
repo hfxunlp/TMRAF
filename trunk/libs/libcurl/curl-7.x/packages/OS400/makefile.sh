@@ -30,12 +30,14 @@ SCRIPTDIR=`dirname "${0}"`
 . "${SCRIPTDIR}/initscript.sh"
 cd "${TOPDIR}"
 
+
 #       Create the OS/400 library if it does not exist.
 
 if action_needed "${LIBIFSNAME}"
 then    CMD="CRTLIB LIB(${TARGETLIB}) TEXT('curl: multiprotocol support API')"
         system "${CMD}"
 fi
+
 
 #       Create the DOCS source file if it does not exist.
 
@@ -44,6 +46,7 @@ then    CMD="CRTSRCPF FILE(${TARGETLIB}/DOCS) RCDLEN(240)"
         CMD="${CMD} CCSID(${TGTCCSID}) TEXT('Documentation texts')"
         system "${CMD}"
 fi
+
 
 #       Copy some documentation files if needed.
 
@@ -62,6 +65,7 @@ do      MEMBER="`basename \"${TEXT}\" .OS400`"
                 system "${CMD}"
         fi
 done
+
 
 #       Build in each directory.
 

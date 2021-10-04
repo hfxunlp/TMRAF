@@ -61,6 +61,7 @@ ZLIB_LIB    := D:/libraries/zlib/zlib-1.2.8-VxWorks6.3/binaries/vxworks_3.1_gnu/
 ARES_INC    :=
 ARES_LIB    :=
 
+
 # ----------------------------------------------------------------------
 # Compiler
 # ----------------------------------------------------------------------
@@ -155,6 +156,7 @@ INCLUDE_FILES += $(shell find ../include -name \*.h)
 
 # List of sources
 OBJLIST := $(CSOURCES:%.c=$(TMP_DIR)/%$(OBJ_EXTENSION))
+
 
 # ----------------------------------------------------------------------
 

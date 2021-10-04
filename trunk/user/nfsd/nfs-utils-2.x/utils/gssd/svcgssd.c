@@ -67,7 +67,6 @@
 #include "misc.h"
 #include "svcgssd_krb5.h"
 
-struct state_paths etab; /* from cacheio.c */
 static bool signal_received = false;
 static struct event_base *evbase = NULL;
 static int nullrpc_fd = -1;

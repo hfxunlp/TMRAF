@@ -14,6 +14,7 @@
 
 @SET_MAKE@
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -119,13 +120,13 @@ ARFLAGS = cru
 AM_V_AR = $(am__v_AR_@AM_V@)
 am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
 am__v_AR_0 = @echo "  AR      " $@;
-am__v_AR_1 =
+am__v_AR_1 = 
 libexport_a_AR = $(AR) $(ARFLAGS)
 libexport_a_LIBADD =
 am_libexport_a_OBJECTS = client.$(OBJEXT) export.$(OBJEXT) \
 	hostname.$(OBJEXT) xtab.$(OBJEXT) mount_clnt.$(OBJEXT) \
 	mount_xdr.$(OBJEXT) cache.$(OBJEXT) auth.$(OBJEXT) \
-	v4root.$(OBJEXT) fsloc.$(OBJEXT)
+	v4root.$(OBJEXT) fsloc.$(OBJEXT) v4clients.$(OBJEXT)
 libexport_a_OBJECTS = $(am_libexport_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -134,11 +135,11 @@ am__v_P_1 = :
 AM_V_GEN = $(am__v_GEN_@AM_V@)
 am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
 am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 =
+am__v_GEN_1 = 
 AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
-am__v_at_1 =
+am__v_at_1 = 
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/support/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
@@ -146,14 +147,15 @@ am__depfiles_remade = ./$(DEPDIR)/auth.Po ./$(DEPDIR)/cache.Po \
 	./$(DEPDIR)/client.Po ./$(DEPDIR)/export.Po \
 	./$(DEPDIR)/fsloc.Po ./$(DEPDIR)/hostname.Po \
 	./$(DEPDIR)/mount_clnt.Po ./$(DEPDIR)/mount_xdr.Po \
-	./$(DEPDIR)/v4root.Po ./$(DEPDIR)/xtab.Po
+	./$(DEPDIR)/v4clients.Po ./$(DEPDIR)/v4root.Po \
+	./$(DEPDIR)/xtab.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
-am__v_lt_1 =
+am__v_lt_1 = 
 LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
 	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
@@ -161,7 +163,7 @@ LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CC = $(am__v_CC_@AM_V@)
 am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
 am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 =
+am__v_CC_1 = 
 CCLD = $(CC)
 LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -169,7 +171,7 @@ LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 =
+am__v_CCLD_1 = 
 SOURCES = $(libexport_a_SOURCES)
 DIST_SOURCES = $(libexport_a_SOURCES)
 am__can_run_installinfo = \
@@ -394,7 +396,8 @@ EXTRA_DIST = mount.x
 noinst_LIBRARIES = libexport.a
 libexport_a_SOURCES = client.c export.c hostname.c \
 		      xtab.c mount_clnt.c mount_xdr.c \
-			  cache.c auth.c v4root.c fsloc.c
+		      cache.c auth.c v4root.c fsloc.c \
+		      v4clients.c
 
 BUILT_SOURCES = $(GENFILES)
 noinst_HEADERS = mount.h
@@ -440,7 +443,7 @@ $(am__aclocal_m4_deps):
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
 
-libexport.a: $(libexport_a_OBJECTS) $(libexport_a_DEPENDENCIES) $(EXTRA_libexport_a_DEPENDENCIES)
+libexport.a: $(libexport_a_OBJECTS) $(libexport_a_DEPENDENCIES) $(EXTRA_libexport_a_DEPENDENCIES) 
 	$(AM_V_at)-rm -f libexport.a
 	$(AM_V_AR)$(libexport_a_AR) libexport.a $(libexport_a_OBJECTS) $(libexport_a_LIBADD)
 	$(AM_V_at)$(RANLIB) libexport.a
@@ -459,6 +462,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hostname.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mount_clnt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mount_xdr.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/v4clients.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/v4root.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xtab.Po@am__quote@ # am--include-marker
 
@@ -636,6 +640,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/hostname.Po
 	-rm -f ./$(DEPDIR)/mount_clnt.Po
 	-rm -f ./$(DEPDIR)/mount_xdr.Po
+	-rm -f ./$(DEPDIR)/v4clients.Po
 	-rm -f ./$(DEPDIR)/v4root.Po
 	-rm -f ./$(DEPDIR)/xtab.Po
 	-rm -f Makefile
@@ -691,6 +696,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/hostname.Po
 	-rm -f ./$(DEPDIR)/mount_clnt.Po
 	-rm -f ./$(DEPDIR)/mount_xdr.Po
+	-rm -f ./$(DEPDIR)/v4clients.Po
 	-rm -f ./$(DEPDIR)/v4root.Po
 	-rm -f ./$(DEPDIR)/xtab.Po
 	-rm -f Makefile
@@ -728,6 +734,7 @@ uninstall-am:
 	pdf pdf-am ps ps-am tags tags-am uninstall uninstall-am
 
 .PRECIOUS: Makefile
+
 
 dist-hook:
 	for f in $(GENFILES); do \

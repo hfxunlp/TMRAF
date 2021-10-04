@@ -169,17 +169,27 @@ static int gssd_get_single_krb5_cred(krb5_context context,
 static int query_krb5_ccache(const char* cred_cache, char **ret_princname,
 		char **ret_realm);
 
-static void release_ple(krb5_context context, struct gssd_k5_kt_princ *ple)
+static void release_ple_locked(krb5_context context,
+			       struct gssd_k5_kt_princ *ple)
 {
 	if (--ple->refcount)
 		return;
 
-	printerr(3, "freeing cached principal (ccname=%s, realm=%s)\n", ple->ccname, ple->realm);
+	printerr(3, "freeing cached principal (ccname=%s, realm=%s)\n",
+		 ple->ccname, ple->realm);
 	krb5_free_principal(context, ple->princ);
 	free(ple->ccname);
 	free(ple->realm);
 	free(ple);
 }
+
+static void release_ple(krb5_context context, struct gssd_k5_kt_princ *ple)
+{
+	pthread_mutex_lock(&ple_lock);
+	release_ple_locked(context, ple);
+	pthread_mutex_unlock(&ple_lock);
+}
+
 
 /*
  * Called from the scandir function to weed out potential krb5
@@ -399,6 +409,7 @@ gssd_get_single_krb5_cred(krb5_context context,
 	char *pname = NULL;
 	char *k5err = NULL;
 	int nocache = 0;
+	pthread_t tid = pthread_self();
 
 	memset(&my_creds, 0, sizeof(my_creds));
 
@@ -411,8 +422,8 @@ gssd_get_single_krb5_cred(krb5_context context,
 	now += 300;
 	pthread_mutex_lock(&ple_lock);
 	if (ple->ccname && ple->endtime > now && !nocache) {
-		printerr(3, "INFO: Credentials in CC '%s' are good until %d\n",
-			 ple->ccname, ple->endtime);
+		printerr(3, "%s(0x%lx): Credentials in CC '%s' are good until %s",
+			 __func__, tid, ple->ccname, ctime((time_t *)&ple->endtime));
 		code = 0;
 		pthread_mutex_unlock(&ple_lock);
 		goto out;
@@ -512,7 +523,8 @@ gssd_get_single_krb5_cred(krb5_context context,
 	}
 
 	code = 0;
-	printerr(2, "%s: principal '%s' ccache:'%s'\n", __func__, pname, cc_name);
+	printerr(2, "%s(0x%lx): principal '%s' ccache:'%s'\n", 
+		__func__, tid, pname, cc_name);
   out:
 #ifdef HAVE_KRB5_GET_INIT_CREDS_OPT_SET_ADDRESSLESS
 	if (init_opts)
@@ -641,6 +653,7 @@ get_full_hostname(const char *inhost, char *outhost, int outhostlen)
 	struct addrinfo hints;
 	int retval;
 	char *c;
+	pthread_t tid = pthread_self();
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_socktype = SOCK_STREAM;
@@ -650,8 +663,8 @@ get_full_hostname(const char *inhost, char *outhost, int outhostlen)
 	/* Get full target hostname */
 	retval = getaddrinfo(inhost, NULL, &hints, &addrs);
 	if (retval) {
-		printerr(1, "%s while getting full hostname for '%s'\n",
-			 gai_strerror(retval), inhost);
+		printerr(1, "%s(0x%lx): getaddrinfo(%s) failed: %s\n",
+			 __func__, tid, inhost, gai_strerror(retval));
 		goto out;
 	}
 	strncpy(outhost, addrs->ai_canonname, outhostlen);
@@ -659,7 +672,10 @@ get_full_hostname(const char *inhost, char *outhost, int outhostlen)
 	for (c = outhost; *c != '\0'; c++)
 	    *c = tolower(*c);
 
-	printerr(3, "Full hostname for '%s' is '%s'\n", inhost, outhost);
+	if (get_verbosity() && strcmp(inhost, outhost))
+		printerr(1, "%s(0x%0lx): inhost '%s' different than outhost'%s'\n", 
+			inhost, outhost);
+
 	retval = 0;
 out:
 	return retval;
@@ -846,6 +862,7 @@ find_keytab_entry(krb5_context context, krb5_keytab kt,
 	krb5_principal princ;
 	const char *notsetstr = "not set";
 	char *adhostoverride = NULL;
+	pthread_t tid = pthread_self();
 
 
 	/* Get full target hostname */
@@ -1000,7 +1017,7 @@ find_keytab_entry(krb5_context context, krb5_keytab kt,
 					tried_upper = 1;
 				}
 			} else {
-				printerr(2, "Success getting keytab entry for '%s'\n",spn);
+				printerr(2, "find_keytab_entry(0x%lx): Success getting keytab entry for '%s'\n",tid, spn);
 				retval = 0;
 				goto out;
 			}
@@ -1141,9 +1158,6 @@ gssd_refresh_krb5_machine_credential_internal(char *hostname,
 	char *k5err = NULL;
 	const char *svcnames[] = { "$", "root", "nfs", "host", NULL };
 
-	printerr(2, "%s: hostname=%s ple=%p service=%s srchost=%s\n",
-		__func__, hostname, ple, service, srchost);
-
 	/*
 	 * If a specific service name was specified, use it.
 	 * Otherwise, use the default list.
@@ -1152,9 +1166,10 @@ gssd_refresh_krb5_machine_credential_internal(char *hostname,
 		svcnames[0] = service;
 		svcnames[1] = NULL;
 	}
-	if (hostname == NULL && ple == NULL)
+	if (hostname == NULL && ple == NULL) {
+		printerr(0, "ERROR: %s: Invalid args\n", __func__);
 		return EINVAL;
-
+	}
 	code = krb5_init_context(&context);
 	if (code) {
 		k5err = gssd_k5_err_msg(NULL, code);
@@ -1420,7 +1435,7 @@ gssd_destroy_krb5_principals(int destroy_machine_creds)
 			}
 		}
 
-		release_ple(context, ple);
+		release_ple_locked(context, ple);
 	}
 	pthread_mutex_unlock(&ple_lock);
 	krb5_free_context(context);

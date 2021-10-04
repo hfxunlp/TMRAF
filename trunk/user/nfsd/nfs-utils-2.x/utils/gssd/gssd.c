@@ -87,6 +87,8 @@ unsigned int  context_timeout = 0;
 unsigned int  rpc_timeout = 5;
 char *preferred_realm = NULL;
 char *ccachedir = NULL;
+/* set $HOME to "/" by default */
+static bool set_home = true;
 /* Avoid DNS reverse lookups on server names */
 static bool avoid_dns = true;
 static bool use_gssproxy = false;
@@ -94,7 +96,28 @@ pthread_mutex_t clp_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool signal_received = false;
 static struct event_base *evbase = NULL;
 
+int upcall_timeout = DEF_UPCALL_TIMEOUT;
+static bool cancel_timed_out_upcalls = false;
+
 TAILQ_HEAD(topdir_list_head, topdir) topdir_list;
+
+/*
+ * active_thread_list:
+ *
+ * 	used to track upcalls for timeout purposes.
+ *
+ * 	protected by the active_thread_list_lock mutex.
+ *
+ * 	upcall_thread_info structures are added to the tail of the list
+ * 	by start_upcall_thread(), so entries closer to the head of the list
+ * 	will be closer to hitting the upcall timeout.
+ *
+ * 	upcall_thread_info structures are removed from the list upon a
+ * 	sucessful join of the upcall thread by the watchdog thread (via
+ * 	scan_active_thread_list().
+ */
+TAILQ_HEAD(active_thread_list_head, upcall_thread_info) active_thread_list;
+pthread_mutex_t active_thread_list_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct topdir {
 	TAILQ_ENTRY(topdir) list;
@@ -362,7 +385,7 @@ out:
 /* Actually frees clp and fields that might be used from other
  * threads if was last reference.
  */
-static void
+void
 gssd_free_client(struct clnt_info *clp)
 {
 	int refcnt;
@@ -373,7 +396,7 @@ gssd_free_client(struct clnt_info *clp)
 	if (refcnt > 0)
 		return;
 
-	printerr(3, "freeing client %s\n", clp->relpath);
+	printerr(4, "freeing client %s\n", clp->relpath);
 
 	if (clp->krb5_fd >= 0)
 		close(clp->krb5_fd);
@@ -394,7 +417,7 @@ gssd_free_client(struct clnt_info *clp)
 static void
 gssd_destroy_client(struct clnt_info *clp)
 {
-	printerr(3, "destroying client %s\n", clp->relpath);
+	printerr(4, "destroying client %s\n", clp->relpath);
 
 	if (clp->krb5_ev) {
 		event_del(clp->krb5_ev);
@@ -414,8 +437,133 @@ gssd_destroy_client(struct clnt_info *clp)
 
 static void gssd_scan(void);
 
+/* For each upcall read the upcall info into the buffer, then create a
+ * thread in a detached state so that resources are released back into
+ * the system without the need for a join.
+ */
+static void
+gssd_clnt_gssd_cb(int UNUSED(fd), short UNUSED(which), void *data)
+{
+	struct clnt_info *clp = data;
+
+	handle_gssd_upcall(clp);
+}
+
+static void
+gssd_clnt_krb5_cb(int UNUSED(fd), short UNUSED(which), void *data)
+{
+	struct clnt_info *clp = data;
+
+	handle_krb5_upcall(clp);
+}
+
+/*
+ * scan_active_thread_list:
+ *
+ * Walks the active_thread_list, trying to join as many upcall threads as
+ * possible.  For threads that have terminated, the corresponding
+ * upcall_thread_info will be removed from the list and freed.  Threads that
+ * are still busy and have exceeded the upcall_timeout will cause an error to
+ * be logged and may be canceled (depending on the value of
+ * cancel_timed_out_upcalls).
+ *
+ * Returns the number of seconds that the watchdog thread should wait before
+ * calling scan_active_thread_list() again.
+ */
 static int
-start_upcall_thread(void (*func)(struct clnt_upcall_info *), void *info)
+scan_active_thread_list(void)
+{
+	struct upcall_thread_info *info;
+	struct timespec now;
+	unsigned int sleeptime;
+	bool sleeptime_set = false;
+	int err;
+	void *tret, *saveprev;
+
+	sleeptime = upcall_timeout;
+	pthread_mutex_lock(&active_thread_list_lock);
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	TAILQ_FOREACH(info, &active_thread_list, list) {
+		err = pthread_tryjoin_np(info->tid, &tret);
+		switch (err) {
+		case 0:
+			/*
+			 * The upcall thread has either completed successfully, or
+			 * has been canceled _and_ has acted on the cancellation request
+			 * (i.e. has hit a cancellation point).  We can now remove the
+			 * upcall_thread_info from the list and free it.
+			 */
+			if (tret == PTHREAD_CANCELED)
+				printerr(2, "watchdog: thread id 0x%lx cancelled successfully\n",
+						info->tid);
+			saveprev = info->list.tqe_prev;
+			TAILQ_REMOVE(&active_thread_list, info, list);
+			free(info);
+			info = saveprev;
+			break;
+		case EBUSY:
+			/*
+			 * The upcall thread is still running.  If the timeout has expired
+			 * then we either cancel the thread, log an error, and do an error
+			 * downcall to the kernel (cancel_timed_out_upcalls=true) or simply
+			 * log an error (cancel_timed_out_upcalls=false).  In either case,
+			 * the error is logged only once.
+			 */
+			if (now.tv_sec >= info->timeout.tv_sec) {
+				if (cancel_timed_out_upcalls && !(info->flags & UPCALL_THREAD_CANCELED)) {
+					printerr(0, "watchdog: thread id 0x%lx timed out\n",
+							info->tid);
+					pthread_cancel(info->tid);
+					info->flags |= (UPCALL_THREAD_CANCELED|UPCALL_THREAD_WARNED);
+					do_error_downcall(info->fd, info->uid, -ETIMEDOUT);
+				} else {
+					if (!(info->flags & UPCALL_THREAD_WARNED)) {
+						printerr(0, "watchdog: thread id 0x%lx running for %ld seconds\n",
+								info->tid,
+								now.tv_sec - info->timeout.tv_sec + upcall_timeout);
+						info->flags |= UPCALL_THREAD_WARNED;
+					}
+				}
+			} else if (!sleeptime_set) {
+			/*
+			 * The upcall thread is still running, but the timeout has not yet
+			 * expired.  Calculate the time remaining until the timeout will
+			 * expire.  This is the amount of time the watchdog thread will
+			 * wait before running again.  We only need to do this for the busy
+			 * thread closest to the head of the list - entries appearing later
+			 * in the list will time out later.
+			 */
+				sleeptime = info->timeout.tv_sec - now.tv_sec;
+				sleeptime_set = true;
+			}
+			break;
+		default:
+			/* EDEADLK, EINVAL, and ESRCH... none of which should happen! */
+			printerr(0, "watchdog: attempt to join thread id 0x%lx returned %d (%s)!\n",
+					info->tid, err, strerror(err));
+			break;
+		}
+	}
+	pthread_mutex_unlock(&active_thread_list_lock);
+
+	return sleeptime;
+}
+
+static void *
+watchdog_thread_fn(void *UNUSED(arg))
+{
+	unsigned int sleeptime;
+
+	for (;;) {
+		sleeptime = scan_active_thread_list();
+		printerr(4, "watchdog: sleeping %u secs\n", sleeptime);
+		sleep(sleeptime);
+	}
+	return (void *)0;
+}
+
+static int
+start_watchdog_thread(void)
 {
 	pthread_attr_t attr;
 	pthread_t th;
@@ -429,86 +577,16 @@ start_upcall_thread(void (*func)(struct clnt_upcall_info *), void *info)
 	}
 	ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (ret != 0) {
-		printerr(0, "ERROR: failed to create pthread attr: ret %d: "
-			 "%s\n", ret, strerror(errno));
+		printerr(0, "ERROR: failed to create pthread attr: ret %d: %s\n",
+			 ret, strerror(errno));
 		return ret;
 	}
-
-	ret = pthread_create(&th, &attr, (void *)func, (void *)info);
-	if (ret != 0)
+	ret = pthread_create(&th, &attr, watchdog_thread_fn, NULL);
+	if (ret != 0) {
 		printerr(0, "ERROR: pthread_create failed: ret %d: %s\n",
 			 ret, strerror(errno));
+	}
 	return ret;
-}
-
-static struct clnt_upcall_info *alloc_upcall_info(struct clnt_info *clp)
-{
-	struct clnt_upcall_info *info;
-
-	info = malloc(sizeof(struct clnt_upcall_info));
-	if (info == NULL)
-		return NULL;
-
-	pthread_mutex_lock(&clp_lock);
-	clp->refcount++;
-	pthread_mutex_unlock(&clp_lock);
-	info->clp = clp;
-
-	return info;
-}
-
-void free_upcall_info(struct clnt_upcall_info *info)
-{
-	gssd_free_client(info->clp);
-	free(info);
-}
-
-/* For each upcall read the upcall info into the buffer, then create a
- * thread in a detached state so that resources are released back into
- * the system without the need for a join.
- */
-static void
-gssd_clnt_gssd_cb(int UNUSED(fd), short UNUSED(which), void *data)
-{
-	struct clnt_info *clp = data;
-	struct clnt_upcall_info *info;
-
-	info = alloc_upcall_info(clp);
-	if (info == NULL)
-		return;
-
-	info->lbuflen = read(clp->gssd_fd, info->lbuf, sizeof(info->lbuf));
-	if (info->lbuflen <= 0 || info->lbuf[info->lbuflen-1] != '\n') {
-		printerr(0, "WARNING: %s: failed reading request\n", __func__);
-		free_upcall_info(info);
-		return;
-	}
-	info->lbuf[info->lbuflen-1] = 0;
-
-	if (start_upcall_thread(handle_gssd_upcall, info))
-		free_upcall_info(info);
-}
-
-static void
-gssd_clnt_krb5_cb(int UNUSED(fd), short UNUSED(which), void *data)
-{
-	struct clnt_info *clp = data;
-	struct clnt_upcall_info *info;
-
-	info = alloc_upcall_info(clp);
-	if (info == NULL)
-		return;
-
-	if (read(clp->krb5_fd, &info->uid,
-			sizeof(info->uid)) < (ssize_t)sizeof(info->uid)) {
-		printerr(0, "WARNING: %s: failed reading uid from krb5 "
-			 "upcall pipe: %s\n", __func__, strerror(errno));
-		free_upcall_info(info);
-		return;
-	}
-
-	if (start_upcall_thread(handle_krb5_upcall, info))
-		free_upcall_info(info);
 }
 
 static struct clnt_info *
@@ -520,7 +598,7 @@ gssd_get_clnt(struct topdir *tdi, const char *name)
 		if (!strcmp(clp->name, name))
 			return clp;
 
-	printerr(3, "creating client %s/%s\n", tdi->name, name);
+	printerr(4, "creating client %s/%s\n", tdi->name, name);
 
 	clp = calloc(1, sizeof(struct clnt_info));
 	if (!clp) {
@@ -561,7 +639,7 @@ gssd_scan_clnt(struct clnt_info *clp)
 {
 	int clntfd;
 
-	printerr(3, "scanning client %s\n", clp->relpath);
+	printerr(4, "scanning client %s\n", clp->relpath);
 
 	clntfd = openat(pipefs_fd, clp->relpath, O_RDONLY);
 	if (clntfd < 0) {
@@ -720,7 +798,7 @@ gssd_scan(void)
 {
 	struct dirent *d;
 
-	printerr(3, "doing a full rescan\n");
+	printerr(4, "doing a full rescan\n");
 	rewinddir(pipefs_dir);
 
 	while ((d = readdir(pipefs_dir))) {
@@ -900,7 +978,7 @@ sig_die(int signal)
 static void
 usage(char *progname)
 {
-	fprintf(stderr, "usage: %s [-f] [-l] [-M] [-n] [-v] [-r] [-p pipefsdir] [-k keytab] [-d ccachedir] [-t timeout] [-R preferred realm] [-D]\n",
+	fprintf(stderr, "usage: %s [-f] [-l] [-M] [-n] [-v] [-r] [-p pipefsdir] [-k keytab] [-d ccachedir] [-t timeout] [-R preferred realm] [-D] [-H] [-U upcall timeout] [-C]\n",
 		progname);
 	exit(1);
 }
@@ -921,6 +999,9 @@ read_gss_conf(void)
 #endif
 	context_timeout = conf_get_num("gssd", "context-timeout", context_timeout);
 	rpc_timeout = conf_get_num("gssd", "rpc-timeout", rpc_timeout);
+	upcall_timeout = conf_get_num("gssd", "upcall-timeout", upcall_timeout);
+	cancel_timed_out_upcalls = conf_get_bool("gssd", "cancel-timed-out-upcalls",
+						cancel_timed_out_upcalls);
 	s = conf_get_str("gssd", "pipefs-directory");
 	if (!s)
 		s = conf_get_str("general", "pipefs-directory");
@@ -941,6 +1022,7 @@ read_gss_conf(void)
 		preferred_realm = s;
 
 	use_gssproxy = conf_get_bool("gssd", "use-gss-proxy", use_gssproxy);
+	set_home = conf_get_bool("gssd", "set-home", set_home);
 }
 
 int
@@ -961,7 +1043,7 @@ main(int argc, char *argv[])
 	verbosity = conf_get_num("gssd", "verbosity", verbosity);
 	rpc_verbosity = conf_get_num("gssd", "rpc-verbosity", rpc_verbosity);
 
-	while ((opt = getopt(argc, argv, "DfvrlmnMp:k:d:t:T:R:")) != -1) {
+	while ((opt = getopt(argc, argv, "HDfvrlmnMp:k:d:t:T:R:U:C")) != -1) {
 		switch (opt) {
 			case 'f':
 				fg = 1;
@@ -1009,6 +1091,15 @@ main(int argc, char *argv[])
 			case 'D':
 				avoid_dns = false;
 				break;
+			case 'H':
+				set_home = false;
+				break;
+			case 'U':
+				upcall_timeout = atoi(optarg);
+				break;
+			case 'C':
+				cancel_timed_out_upcalls = true;
+				break;
 			default:
 				usage(argv[0]);
 				break;
@@ -1018,13 +1109,19 @@ main(int argc, char *argv[])
 	/*
 	 * Some krb5 routines try to scrape info out of files in the user's
 	 * home directory. This can easily deadlock when that homedir is on a
-	 * kerberized NFS mount. By setting $HOME unconditionally to "/", we
-	 * prevent this behavior in routines that use $HOME in preference to
-	 * the results of getpw*.
+	 * kerberized NFS mount. By setting $HOME to "/" by default, we prevent
+	 * this behavior in routines that use $HOME in preference to the results
+	 * of getpw*.
+	 *
+	 * Some users do not use Kerberized home dirs and need $HOME to remain
+	 * unchanged. Those users can leave $HOME unchanged by setting set_home
+	 * to false.
 	 */
-	if (setenv("HOME", "/", 1)) {
-		printerr(0, "gssd: Unable to set $HOME: %s\n", strerror(errno));
-		exit(1);
+	if (set_home) {
+		if (setenv("HOME", "/", 1)) {
+			printerr(0, "gssd: Unable to set $HOME: %s\n", strerror(errno));
+			exit(1);
+		}
 	}
 
 	if (use_gssproxy) {
@@ -1074,6 +1171,11 @@ main(int argc, char *argv[])
 		progname++;
 	else
 		progname = argv[0];
+
+	if (upcall_timeout > MAX_UPCALL_TIMEOUT)
+		upcall_timeout = MAX_UPCALL_TIMEOUT;
+	else if (upcall_timeout < MIN_UPCALL_TIMEOUT)
+		upcall_timeout = MIN_UPCALL_TIMEOUT;
 
 	initerr(progname, verbosity, fg);
 #ifdef HAVE_LIBTIRPC_SET_DEBUG
@@ -1132,6 +1234,14 @@ main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	event_add(inotify_ev, NULL);
+
+	TAILQ_INIT(&active_thread_list);
+
+	rc = start_watchdog_thread();
+	if (rc != 0) {
+		printerr(0, "ERROR: failed to start watchdog thread: %d\n", rc);
+		exit(EXIT_FAILURE);
+	}
 
 	TAILQ_INIT(&topdir_list);
 	gssd_scan();

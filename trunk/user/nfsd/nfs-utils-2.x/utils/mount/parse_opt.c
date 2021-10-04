@@ -178,6 +178,22 @@ static void options_tail_insert(struct mount_options *options,
 	options->count++;
 }
 
+static void options_head_insert(struct mount_options *options,
+				struct mount_option *option)
+{
+	struct mount_option *ohead = options->head;
+
+	option->prev = NULL;
+	option->next = ohead;
+	if (ohead)
+		ohead->prev = option;
+	else
+		options->tail = option;
+	options->head = option;
+
+	options->count++;
+}
+
 static void options_delete(struct mount_options *options,
 			   struct mount_option *option)
 {
@@ -371,6 +387,23 @@ po_return_t po_join(struct mount_options *options, char **str)
 	}
 
 	return PO_SUCCEEDED;
+}
+
+/**
+ * po_insert - insert an option into a group of options
+ * @options: pointer to mount options
+ * @option: pointer to a C string containing the option to add
+ *
+ */
+po_return_t po_insert(struct mount_options *options, char *str)
+{
+	struct mount_option *option = option_create(str);
+
+	if (option) {
+		options_head_insert(options, option);
+		return PO_SUCCEEDED;
+	}
+	return PO_FAILED;
 }
 
 /**

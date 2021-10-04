@@ -14,6 +14,8 @@
 
 @SET_MAKE@
 
+
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -151,7 +153,7 @@ gums_la_OBJECTS = $(am_gums_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
-am__v_lt_1 =
+am__v_lt_1 = 
 gums_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(gums_la_LDFLAGS) $(LDFLAGS) -o $@
@@ -197,11 +199,11 @@ am__v_P_1 = :
 AM_V_GEN = $(am__v_GEN_@AM_V@)
 am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
 am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 =
+am__v_GEN_1 = 
 AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
-am__v_at_1 =
+am__v_at_1 = 
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/support/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
@@ -219,7 +221,7 @@ LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CC = $(am__v_CC_@AM_V@)
 am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
 am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 =
+am__v_CC_1 = 
 CCLD = $(CC)
 LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -227,7 +229,7 @@ LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 =
+am__v_CCLD_1 = 
 SOURCES = $(gums_la_SOURCES) $(libnfsidmap_la_SOURCES) \
 	$(nsswitch_la_SOURCES) $(regex_la_SOURCES) \
 	$(static_la_SOURCES) $(umich_ldap_la_SOURCES)
@@ -456,9 +458,9 @@ top_srcdir = @top_srcdir@
 unitdir = @unitdir@
 @PATH_PLUGINS_FALSE@pkgplugindir = $(libdir)/libnfsidmap
 @PATH_PLUGINS_TRUE@pkgplugindir = $(PATH_PLUGINS)
-@ENABLE_LDAP_FALSE@UMICH_LDAP_LIB =
+@ENABLE_LDAP_FALSE@UMICH_LDAP_LIB = 
 @ENABLE_LDAP_TRUE@UMICH_LDAP_LIB = umich_ldap.la
-@ENABLE_GUMS_FALSE@GUMS_MAPPING_LIB =
+@ENABLE_GUMS_FALSE@GUMS_MAPPING_LIB = 
 @ENABLE_GUMS_TRUE@GUMS_MAPPING_LIB = gums.la
 @ENABLE_LDAP_SASL_TRUE@KRB5_GSS_LIB = -lgssapi_krb5
 lib_LTLIBRARIES = libnfsidmap.la
@@ -608,22 +610,22 @@ clean-pkgpluginLTLIBRARIES:
 	  rm -f $${locs}; \
 	}
 
-gums.la: $(gums_la_OBJECTS) $(gums_la_DEPENDENCIES) $(EXTRA_gums_la_DEPENDENCIES)
+gums.la: $(gums_la_OBJECTS) $(gums_la_DEPENDENCIES) $(EXTRA_gums_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(gums_la_LINK) $(am_gums_la_rpath) $(gums_la_OBJECTS) $(gums_la_LIBADD) $(LIBS)
 
-libnfsidmap.la: $(libnfsidmap_la_OBJECTS) $(libnfsidmap_la_DEPENDENCIES) $(EXTRA_libnfsidmap_la_DEPENDENCIES)
+libnfsidmap.la: $(libnfsidmap_la_OBJECTS) $(libnfsidmap_la_DEPENDENCIES) $(EXTRA_libnfsidmap_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libnfsidmap_la_LINK) -rpath $(libdir) $(libnfsidmap_la_OBJECTS) $(libnfsidmap_la_LIBADD) $(LIBS)
 
-nsswitch.la: $(nsswitch_la_OBJECTS) $(nsswitch_la_DEPENDENCIES) $(EXTRA_nsswitch_la_DEPENDENCIES)
+nsswitch.la: $(nsswitch_la_OBJECTS) $(nsswitch_la_DEPENDENCIES) $(EXTRA_nsswitch_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(nsswitch_la_LINK) -rpath $(pkgplugindir) $(nsswitch_la_OBJECTS) $(nsswitch_la_LIBADD) $(LIBS)
 
-regex.la: $(regex_la_OBJECTS) $(regex_la_DEPENDENCIES) $(EXTRA_regex_la_DEPENDENCIES)
+regex.la: $(regex_la_OBJECTS) $(regex_la_DEPENDENCIES) $(EXTRA_regex_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(regex_la_LINK) -rpath $(pkgplugindir) $(regex_la_OBJECTS) $(regex_la_LIBADD) $(LIBS)
 
-static.la: $(static_la_OBJECTS) $(static_la_DEPENDENCIES) $(EXTRA_static_la_DEPENDENCIES)
+static.la: $(static_la_OBJECTS) $(static_la_DEPENDENCIES) $(EXTRA_static_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(static_la_LINK) -rpath $(pkgplugindir) $(static_la_OBJECTS) $(static_la_LIBADD) $(LIBS)
 
-umich_ldap.la: $(umich_ldap_la_OBJECTS) $(umich_ldap_la_DEPENDENCIES) $(EXTRA_umich_ldap_la_DEPENDENCIES)
+umich_ldap.la: $(umich_ldap_la_OBJECTS) $(umich_ldap_la_DEPENDENCIES) $(EXTRA_umich_ldap_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(umich_ldap_la_LINK) $(am_umich_ldap_la_rpath) $(umich_ldap_la_OBJECTS) $(umich_ldap_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
@@ -1033,6 +1035,7 @@ uninstall-man: uninstall-man3 uninstall-man5
 	uninstall-pkgconfigDATA uninstall-pkgpluginLTLIBRARIES
 
 .PRECIOUS: Makefile
+
 
 #	XXX: also exclude debian/files and debian/files.new ? do a clean??
 dist-hook:

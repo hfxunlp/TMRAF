@@ -25,8 +25,6 @@
 
 extern void my_svc_run(void);
 
-struct state_paths etab;
-
 /* Number of mountd threads to start.   Default is 1 and
  * that's probably enough unless you need hundreds of
  * clients to be able to mount at once.  */
@@ -42,9 +40,14 @@ static struct option longopts[] =
 	{ "foreground", 0, 0, 'F' },
 	{ "debug", 1, 0, 'd' },
 	{ "help", 0, 0, 'h' },
+	{ "manage-gids", 0, 0, 'g' },
 	{ "num-threads", 1, 0, 't' },
+	{ "log-auth", 0, 0, 'l' },
+	{ "cache-use-ipaddr", 0, 0, 'i' },
+	{ "ttl", 0, 0, 'T' },
 	{ NULL, 0, 0, 0 }
 };
+static char shortopts[] = "d:fghs:t:liT:";
 
 /*
  * Signal handlers.
@@ -174,33 +177,43 @@ usage(const char *prog, int n)
 {
 	fprintf(stderr,
 		"Usage: %s [-f|--foreground] [-h|--help] [-d kind|--debug kind]\n"
+"	[-g|--manage-gids] [-l|--log-auth] [-i|--cache-use-ipaddr] [-T|--ttl ttl]\n"
 "	[-s|--state-directory-path path]\n"
 "	[-t num|--num-threads=num]\n", prog);
 	exit(n);
 }
 
-inline static void 
+inline static void
 read_exportd_conf(char *progname, char **argv)
 {
 	char *s;
+	int ttl;
 
 	conf_init_file(NFS_CONFFILE);
 
 	xlog_set_debug(progname);
 
+	manage_gids = conf_get_bool("exportd", "manage-gids", manage_gids);
 	num_threads = conf_get_num("exportd", "threads", num_threads);
+	if (conf_get_bool("mountd", "cache-use-ipaddr", 0))
+		use_ipaddr = 2;
 
 	s = conf_get_str("exportd", "state-directory-path");
 	if (s && !state_setup_basedir(argv[0], s))
 		exit(1);
+
+	ttl = conf_get_num("mountd", "ttl", default_ttl);
+	if (ttl > 0)
+		default_ttl = ttl;
 }
 
 int
 main(int argc, char **argv)
 {
 	char *progname;
-	int	foreground = 0;
-	int	 c;
+	int foreground = 0;
+	int c;
+	int ttl;
 
 	/* Set the basename */
 	if ((progname = strrchr(argv[0], '/')) != NULL)
@@ -214,16 +227,34 @@ main(int argc, char **argv)
 	/* Read in config setting */
 	read_exportd_conf(progname, argv);
 
-	while ((c = getopt_long(argc, argv, "d:fhs:t:", longopts, NULL)) != EOF) {
+	while ((c = getopt_long(argc, argv, shortopts, longopts, NULL)) != EOF) {
 		switch (c) {
 		case 'd':
 			xlog_sconfig(optarg, 1);
 			break;
+		case 'l':
+			xlog_sconfig("auth", 1);
+			break;
 		case 'f':
 			foreground++;
 			break;
+		case 'g':
+			manage_gids = 1;
+			break;
 		case 'h':
 			usage(progname, 0);
+			break;
+		case 'i':
+			use_ipaddr = 2;
+			break;
+		case 'T':
+			ttl = atoi(optarg);
+			if (ttl <= 0) {
+				fprintf(stderr, "%s: bad ttl number of seconds: %s\n",
+					argv[0], optarg);
+				usage(argv[0], 1);
+			}
+			default_ttl = ttl;
 			break;
 		case 's':
 			if (!state_setup_basedir(argv[0], optarg))
@@ -241,8 +272,8 @@ main(int argc, char **argv)
 
 	if (!setup_state_path_names(progname, ETAB, ETABTMP, ETABLCK, &etab))
 		return 1;
-	
-	if (!foreground) 
+
+	if (!foreground)
 		xlog_stderr(0);
 
 	daemon_init(foreground);
@@ -264,6 +295,7 @@ main(int argc, char **argv)
 
 	/* Open files now to avoid sharing descriptors among forked processes */
 	cache_open();
+	v4clients_init();
 
 	/* Process incoming upcalls */
 	cache_process_loop();
