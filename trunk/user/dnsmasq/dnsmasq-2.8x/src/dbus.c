@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2022 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,9 @@ const char* introspection_xml_template =
 "    </method>\n"
 "    <method name=\"SetFilterWin2KOption\">\n"
 "      <arg name=\"filterwin2k\" direction=\"in\" type=\"b\"/>\n"
+"    </method>\n"
+"    <method name=\"SetLocaliseQueriesOption\">\n"
+"      <arg name=\"localise-queries\" direction=\"in\" type=\"b\"/>\n"
 "    </method>\n"
 "    <method name=\"SetBogusPrivOption\">\n"
 "      <arg name=\"boguspriv\" direction=\"in\" type=\"b\"/>\n"
@@ -114,7 +117,7 @@ static dbus_bool_t add_watch(DBusWatch *watch, void *data)
   w->next = daemon->watches;
   daemon->watches = w;
 
-  w = data; /* no warning */
+  (void)data; /* no warning */
   return TRUE;
 }
 
@@ -134,16 +137,20 @@ static void remove_watch(DBusWatch *watch, void *data)
 	up = &(w->next);
     }
 
-  w = data; /* no warning */
+  (void)data; /* no warning */
 }
 
-static void dbus_read_servers(DBusMessage *message)
+static DBusMessage* dbus_read_servers(DBusMessage *message)
 {
   DBusMessageIter iter;
   union  mysockaddr addr, source_addr;
   char *domain;
   
-  dbus_message_iter_init(message, &iter);
+  if (!dbus_message_iter_init(message, &iter))
+    {
+      return dbus_message_new_error(message, DBUS_ERROR_INVALID_ARGS,
+                                    "Failed to initialize dbus message iter");
+    }
 
   mark_servers(SERV_FROM_DBUS);
   
@@ -222,6 +229,7 @@ static void dbus_read_servers(DBusMessage *message)
    
   /* unlink and free anything still marked. */
   cleanup_servers();
+  return NULL;
 }
 
 #ifdef HAVE_LOOP
@@ -545,6 +553,10 @@ static DBusMessage *dbus_add_lease(DBusMessage* message)
 					 "Invalid IP address '%s'", ipaddr);
    
   hw_len = parse_hex((char*)hwaddr, dhcp_chaddr, DHCP_CHADDR_MAX, NULL, &hw_type);
+  if (hw_len < 0)
+    return dbus_message_new_error_printf(message, DBUS_ERROR_INVALID_ARGS,
+					 "Invalid HW address '%s'", hwaddr);
+
   if (hw_type == 0 && hw_len != 0)
     hw_type = ARPHRD_ETHER;
   
@@ -668,7 +680,7 @@ DBusHandlerResult message_handler(DBusConnection *connection,
 #endif
   else if (strcmp(method, "SetServers") == 0)
     {
-      dbus_read_servers(message);
+      reply = dbus_read_servers(message);
       new_servers = 1;
     }
   else if (strcmp(method, "SetServersEx") == 0)
@@ -684,6 +696,10 @@ DBusHandlerResult message_handler(DBusConnection *connection,
   else if (strcmp(method, "SetFilterWin2KOption") == 0)
     {
       reply = dbus_set_bool(message, OPT_FILTER, "filterwin2k");
+    }
+  else if (strcmp(method, "SetLocaliseQueriesOption") == 0)
+    {
+      reply = dbus_set_bool(message, OPT_LOCALISE, "localise-queries");
     }
   else if (strcmp(method, "SetBogusPrivOption") == 0)
     {
@@ -719,7 +735,7 @@ DBusHandlerResult message_handler(DBusConnection *connection,
   if (clear_cache)
     clear_cache_and_reload(dnsmasq_time());
   
-  method = user_data; /* no warning */
+  (void)user_data; /* no warning */
 
   /* If no reply or no error, return nothing */
   if (!reply)
@@ -745,8 +761,11 @@ char *dbus_init(void)
 
   dbus_error_init (&dbus_error);
   if (!(connection = dbus_bus_get (DBUS_BUS_SYSTEM, &dbus_error)))
-    return NULL;
-    
+    {
+      dbus_error_free(&dbus_error);
+      return NULL;
+    }
+  
   dbus_connection_set_exit_on_disconnect(connection, FALSE);
   dbus_connection_set_watch_functions(connection, add_watch, remove_watch, 
 				      NULL, NULL, NULL);

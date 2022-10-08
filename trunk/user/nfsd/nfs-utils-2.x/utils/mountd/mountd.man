@@ -286,10 +286,9 @@ The values recognized in the
 section include
 .BR TCP ,
 .BR UDP ,
-.BR vers2 ,
 .BR vers3 ", and"
 .B vers4
-which each have same same meaning as given by
+which each have the same meaning as given by
 .BR rpc.nfsd (8).
 
 .SH TCP_WRAPPERS SUPPORT

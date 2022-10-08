@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2022 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #define TCP_MAX_QUERIES 100 /* Maximum number of queries per incoming TCP connection */
 #define TCP_BACKLOG 32  /* kernel backlog limit for TCP connections */
 #define EDNS_PKTSZ 4096 /* default max EDNS.0 UDP packet from RFC5625 */
-#define SAFE_PKTSZ 1280 /* "go anywhere" UDP packet size */
+#define SAFE_PKTSZ 1232 /* "go anywhere" UDP packet size, see https://dnsflagday.net/2020/ */
 #define KEYBLOCK_LEN 40 /* choose to minimise fragmentation when storing DNSSEC keys */
 #define DNSSEC_WORK 50 /* Max number of queries to validate one question */
 #define TIMEOUT 10     /* drop UDP queries after TIMEOUT seconds */
@@ -115,6 +115,10 @@ HAVE_IPSET
     define this to include the ability to selectively add resolved ip addresses
     to given ipsets.
 
+HAVE_NFTSET
+    define this to include the ability to selectively add resolved ip addresses
+    to given nftables sets.
+
 HAVE_AUTH
    define this to include the facility to act as an authoritative DNS
    server for one or more zones.
@@ -192,7 +196,7 @@ RESOLVFILE
 /* #define HAVE_CONNTRACK */
 /* #define HAVE_CRYPTOHASH */
 /* #define HAVE_DNSSEC */
-
+/* #define HAVE_NFTSET */
 
 /* Default locations for important system files. */
 
@@ -420,6 +424,10 @@ static char *compile_opts =
 "no-"
 #endif
 "ipset "
+#ifndef HAVE_NFTSET
+"no-"
+#endif
+"nftset "
 #ifndef HAVE_AUTH
 "no-"
 #endif

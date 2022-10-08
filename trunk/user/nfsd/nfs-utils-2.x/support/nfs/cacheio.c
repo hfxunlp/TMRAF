@@ -213,7 +213,6 @@ int qword_get_uint(char **bpp, unsigned int *anint)
 void
 cache_flush(void)
 {
-	struct stat stb;
 	int c;
 	char stime[32];
 	char path[200];

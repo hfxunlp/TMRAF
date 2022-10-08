@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -17,6 +17,8 @@
  *
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
+ *
+ * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
 #include "tool_setup.h"
@@ -30,7 +32,6 @@
 #include "tool_cfgable.h"
 #include "tool_getparam.h"
 #include "tool_getpass.h"
-#include "tool_homedir.h"
 #include "tool_msgs.h"
 #include "tool_paramhlp.h"
 #include "tool_version.h"
@@ -95,10 +96,16 @@ ParameterError file2memory(char **bufp, size_t *size, FILE *file)
     do {
       char buffer[4096];
       nread = fread(buffer, 1, sizeof(buffer), file);
+      if(ferror(file)) {
+        curlx_dyn_free(&dyn);
+        *size = 0;
+        *bufp = NULL;
+        return PARAM_READ_ERROR;
+      }
       if(nread)
         if(curlx_dyn_addn(&dyn, buffer, nread))
           return PARAM_NO_MEM;
-    } while(nread);
+    } while(!feof(file));
     *size = curlx_dyn_len(&dyn);
     *bufp = curlx_dyn_ptr(&dyn);
   }
@@ -107,21 +114,6 @@ ParameterError file2memory(char **bufp, size_t *size, FILE *file)
     *bufp = NULL;
   }
   return PARAM_OK;
-}
-
-void cleanarg(char *str)
-{
-#ifdef HAVE_WRITABLE_ARGV
-  /* now that GetStr has copied the contents of nextarg, wipe the next
-   * argument out so that the username:password isn't displayed in the
-   * system process list */
-  if(str) {
-    size_t len = strlen(str);
-    memset(str, ' ', len);
-  }
-#else
-  (void)str;
-#endif
 }
 
 /*
@@ -268,8 +260,8 @@ ParameterError str2udouble(double *valp, const char *str, long max)
 }
 
 /*
- * Parse the string and modify the long in the given address. Return
- * non-zero on failure, zero on success.
+ * Parse the string and provide an allocated libcurl compatible protocol
+ * string output. Return non-zero on failure, zero on success.
  *
  * The string is a list of protocols
  *
@@ -278,17 +270,22 @@ ParameterError str2udouble(double *valp, const char *str, long max)
  * data.
  */
 
-long proto2num(struct OperationConfig *config, long *val, const char *str)
+ParameterError proto2num(struct OperationConfig *config,
+                         unsigned int val, char **ostr, const char *str)
 {
   char *buffer;
   const char *sep = ",";
   char *token;
+  char obuf[256] = "";
+  size_t olen = sizeof(obuf);
+  char *optr;
+  struct sprotos const *pp;
 
   static struct sprotos {
     const char *name;
-    long bit;
+    unsigned int bit;
   } const protos[] = {
-    { "all", CURLPROTO_ALL },
+    { "all", (unsigned int)CURLPROTO_ALL },
     { "http", CURLPROTO_HTTP },
     { "https", CURLPROTO_HTTPS },
     { "ftp", CURLPROTO_FTP },
@@ -298,6 +295,7 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
     { "telnet", CURLPROTO_TELNET },
     { "ldap", CURLPROTO_LDAP },
     { "ldaps", CURLPROTO_LDAPS },
+    { "mqtt", CURLPROTO_MQTT },
     { "dict", CURLPROTO_DICT },
     { "file", CURLPROTO_FILE },
     { "tftp", CURLPROTO_TFTP },
@@ -309,17 +307,18 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
     { "smtps", CURLPROTO_SMTPS },
     { "rtsp", CURLPROTO_RTSP },
     { "gopher", CURLPROTO_GOPHER },
+    { "gophers", CURLPROTO_GOPHERS },
     { "smb", CURLPROTO_SMB },
     { "smbs", CURLPROTO_SMBS },
     { NULL, 0 }
   };
 
   if(!str)
-    return 1;
+    return PARAM_OPTION_AMBIGUOUS;
 
   buffer = strdup(str); /* because strtok corrupts it */
   if(!buffer)
-    return 1;
+    return PARAM_NO_MEM;
 
   /* Allow strtok() here since this isn't used threaded */
   /* !checksrc! disable BANNEDFUNC 2 */
@@ -327,8 +326,6 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
       token;
       token = strtok(NULL, sep)) {
     enum e_action { allow, deny, set } action = allow;
-
-    struct sprotos const *pp;
 
     /* Process token modifiers */
     while(!ISALNUM(*token)) { /* may be NULL if token is all modifiers */
@@ -344,7 +341,7 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
         break;
       default: /* Includes case of terminating NULL */
         Curl_safefree(buffer);
-        return 1;
+        return PARAM_BAD_USE;
       }
     }
 
@@ -352,13 +349,13 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
       if(curl_strequal(token, pp->name)) {
         switch(action) {
         case deny:
-          *val &= ~(pp->bit);
+          val &= ~(pp->bit);
           break;
         case allow:
-          *val |= pp->bit;
+          val |= pp->bit;
           break;
         case set:
-          *val = pp->bit;
+          val = pp->bit;
           break;
         }
         break;
@@ -369,12 +366,25 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
       /* If they have specified only this protocol, we say treat it as
          if no protocols are allowed */
       if(action == set)
-        *val = 0;
+        val = 0;
       warnf(config->global, "unrecognized protocol '%s'\n", token);
     }
   }
   Curl_safefree(buffer);
-  return 0;
+
+  optr = obuf;
+  for(pp = &protos[1]; pp->name; pp++) {
+    if(val & pp->bit) {
+      size_t n = msnprintf(optr, olen, "%s%s",
+                           olen != sizeof(obuf) ? "," : "",
+                           pp->name);
+      olen -= n;
+      optr += n;
+    }
+  }
+  *ostr = strdup(obuf);
+
+  return *ostr ? PARAM_OK : PARAM_NO_MEM;
 }
 
 /**
@@ -385,7 +395,7 @@ long proto2num(struct OperationConfig *config, long *val, const char *str)
  * @return PARAM_LIBCURL_UNSUPPORTED_PROTOCOL  protocol not supported
  * @return PARAM_REQUIRES_PARAMETER   missing parameter
  */
-int check_protocol(const char *str)
+ParameterError check_protocol(const char *str)
 {
   const char * const *pp;
   const curl_version_info_data *curlinfo = curl_version_info(CURLVERSION_NOW);
@@ -549,10 +559,44 @@ static char *my_useragent(void)
   return strdup(CURL_NAME "/" CURL_VERSION);
 }
 
+#define isheadersep(x) ((((x)==':') || ((x)==';')))
+
+/*
+ * inlist() returns true if the given 'checkfor' header is present in the
+ * header list.
+ */
+static bool inlist(const struct curl_slist *head,
+                   const char *checkfor)
+{
+  size_t thislen = strlen(checkfor);
+  DEBUGASSERT(thislen);
+  DEBUGASSERT(checkfor[thislen-1] != ':');
+
+  for(; head; head = head->next) {
+    if(curl_strnequal(head->data, checkfor, thislen) &&
+       isheadersep(head->data[thislen]) )
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
 CURLcode get_args(struct OperationConfig *config, const size_t i)
 {
   CURLcode result = CURLE_OK;
   bool last = (config->next ? FALSE : TRUE);
+
+  if(config->jsoned) {
+    ParameterError err = PARAM_OK;
+    /* --json also implies json Content-Type: and Accept: headers - if
+       they are not set with -H */
+    if(!inlist(config->headers, "Content-Type"))
+      err = add2list(&config->headers, "Content-Type: application/json");
+    if(!err && !inlist(config->headers, "Accept"))
+      err = add2list(&config->headers, "Accept: application/json");
+    if(err)
+      return CURLE_OUT_OF_MEMORY;
+  }
 
   /* Check we have a password for the given host user */
   if(config->userpwd && !config->oauth_bearer) {

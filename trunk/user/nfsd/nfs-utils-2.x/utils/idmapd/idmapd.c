@@ -73,7 +73,7 @@
 #include "nfslib.h"
 
 #ifndef PIPEFS_DIR
-#define PIPEFS_DIR  "/var/lib/nfs/rpc_pipefs/"
+#define PIPEFS_DIR  NFS_STATEDIR "/rpc_pipefs/"
 #endif
 
 #ifndef NFSD_DIR
@@ -474,7 +474,7 @@ main(int argc, char **argv)
 		event_free(svrdirev);
 	event_base_free(evbase);
 
-	return 1;
+	return 0;
 }
 
 static void

@@ -365,10 +365,8 @@ static int _nss_name_to_gid(char *name, gid_t *gid, int dostrip)
 out_buf:
 	free(buf);
 out_name:
-	if (dostrip)
-		free(localname);
-	if (get_reformat_group())
-		free(ref_name);
+	free(localname);
+	free(ref_name);
 out:
 	return err;
 }

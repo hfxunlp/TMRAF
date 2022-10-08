@@ -339,16 +339,25 @@ static int nfs_verify_lock_option(struct mount_options *options)
 
 static int nfs_insert_sloppy_option(struct mount_options *options)
 {
-	if (!sloppy || linux_version_code() < MAKE_VERSION(2, 6, 27))
+	if (linux_version_code() < MAKE_VERSION(2, 6, 27))
 		return 1;
 
-	if (po_insert(options, "sloppy") == PO_FAILED)
-		return 0;
+	if (po_contains(options, "sloppy")) {
+		po_remove_all(options, "sloppy");
+		sloppy++;
+	}
+
+	if (sloppy) {
+		if (po_insert(options, "sloppy") == PO_FAILED)
+			return 0;
+	}
+
 	return 1;
 }
 
 static int nfs_set_version(struct nfsmount_info *mi)
 {
+
 	if (!nfs_nfs_version(mi->type, mi->options, &mi->version))
 		return 0;
 
@@ -964,7 +973,9 @@ fall_back:
 	if ((result = nfs_try_mount_v3v2(mi, FALSE)))
 		return result;
 
-	errno = olderrno;
+	if (errno != EBUSY && errno != EACCES)
+		errno = olderrno;
+
 	return result;
 }
 
@@ -1008,7 +1019,6 @@ static int nfs_try_mount(struct nfsmount_info *mi)
 	}
 
 	switch (mi->version.major) {
-		case 2:
 		case 3:
 			result = nfs_try_mount_v3v2(mi, FALSE);
 			break;
@@ -1238,6 +1248,14 @@ static int nfsmount_start(struct nfsmount_info *mi)
 {
 	if (!nfs_validate_options(mi))
 		return EX_FAIL;
+
+	/* 
+	 * NFS v2 has been deprecated
+	 */
+	if (mi->version.major == 2) {
+		mount_error(mi->spec, mi->node, EOPNOTSUPP);
+		return EX_FAIL;
+	}
 
 	/*
 	 * Avoid retry and negotiation logic when remounting

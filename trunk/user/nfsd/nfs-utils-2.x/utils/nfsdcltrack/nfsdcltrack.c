@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/inotify.h>
@@ -507,7 +508,7 @@ cltrack_gracedone(const char *timestr)
 {
 	int ret;
 	char *tail;
-	time_t gracetime;
+	uint64_t gracetime;
 
 
 	ret = sqlite_prepare_dbh(storagedir);
@@ -525,7 +526,7 @@ cltrack_gracedone(const char *timestr)
 	if (*tail)
 		return -EINVAL;
 
-	xlog(D_GENERAL, "%s: grace done. gracetime=%ld", __func__, gracetime);
+	xlog(D_GENERAL, "%s: grace done. gracetime=%"PRIu64, __func__, gracetime);
 
 	ret = sqlite_remove_unreclaimed(gracetime);
 

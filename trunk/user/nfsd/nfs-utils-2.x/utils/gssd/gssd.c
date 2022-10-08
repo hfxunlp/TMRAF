@@ -1016,7 +1016,7 @@ read_gss_conf(void)
 		keytabfile = s;
 	s = conf_get_str("gssd", "cred-cache-directory");
 	if (s)
-		ccachedir = s;
+		ccachedir = strdup(s);
 	s = conf_get_str("gssd", "preferred-realm");
 	if (s)
 		preferred_realm = s;
@@ -1070,7 +1070,8 @@ main(int argc, char *argv[])
 				keytabfile = optarg;
 				break;
 			case 'd':
-				ccachedir = optarg;
+				free(ccachedir);
+				ccachedir = strdup(optarg);
 				break;
 			case 't':
 				context_timeout = atoi(optarg);
@@ -1133,7 +1134,6 @@ main(int argc, char *argv[])
 	}
 
 	if (ccachedir) {
-		char *ccachedir_copy;
 		char *ptr;
 
 		for (ptr = ccachedir, i = 2; *ptr; ptr++)
@@ -1141,8 +1141,7 @@ main(int argc, char *argv[])
 				i++;
 
 		ccachesearch = malloc(i * sizeof(char *));
-	       	ccachedir_copy = strdup(ccachedir);
-		if (!ccachedir_copy || !ccachesearch) {
+		if (!ccachesearch) {
 			printerr(0, "malloc failure\n");
 			exit(EXIT_FAILURE);
 		}
@@ -1274,6 +1273,7 @@ main(int argc, char *argv[])
 
 	free(preferred_realm);
 	free(ccachesearch);
+	free(ccachedir);
 
 	return rc < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

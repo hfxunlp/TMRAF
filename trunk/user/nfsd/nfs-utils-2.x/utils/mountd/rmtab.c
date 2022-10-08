@@ -233,6 +233,9 @@ mountlist_list(void)
 			m->ml_directory = strdup(rep->r_path);
 
 			if (m->ml_hostname == NULL || m->ml_directory == NULL) {
+				free(m->ml_hostname);
+				free(m->ml_directory);
+				free(m);
 				mountlist_freeall(mlist);
 				mlist = NULL;
 				xlog(L_ERROR, "%s: memory allocation failed",

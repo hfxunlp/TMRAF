@@ -5,7 +5,7 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1998 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
@@ -17,6 +17,8 @@
 #
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
+#
+# SPDX-License-Identifier: curl
 #
 ###########################################################################
 # curl/libcurl CMake script
@@ -65,7 +67,11 @@ message(STATUS "curl version=[${CURL_VERSION}]")
 # SET(PACKAGE_STRING "curl-")
 # SET(PACKAGE_BUGREPORT "a suitable curl mailing list => https://curl.se/mail/")
 set(OPERATING_SYSTEM "${CMAKE_SYSTEM_NAME}")
-set(OS "\"${CMAKE_SYSTEM_NAME}\"")
+if(CMAKE_C_COMPILER_TARGET)
+  set(OS "\"${CMAKE_C_COMPILER_TARGET}\"")
+else()
+  set(OS "\"${CMAKE_SYSTEM_NAME}\"")
+endif()
 
 include_directories(${CURL_SOURCE_DIR}/include)
 
@@ -76,20 +82,11 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ENABLE_ARES "Set to ON to enable c-ares support" OFF)
 if(WIN32)
   option(CURL_STATIC_CRT "Set to ON to build libcurl with static CRT on Windows (/MT)." OFF)
-  option(ENABLE_INET_PTON "Set to OFF to prevent usage of inet_pton when building against modern SDKs while still requiring compatibility with older Windows versions, such as Windows XP, Windows Server 2003 etc." ON)
   option(ENABLE_UNICODE "Set to ON to use the Unicode version of the Windows API functions" OFF)
   set(CURL_TARGET_WINDOWS_VERSION "" CACHE STRING "Minimum target Windows version as hex string")
   if(CURL_TARGET_WINDOWS_VERSION)
     add_definitions(-D_WIN32_WINNT=${CURL_TARGET_WINDOWS_VERSION})
     set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_WIN32_WINNT=${CURL_TARGET_WINDOWS_VERSION}")
-  elseif(ENABLE_INET_PTON)
-    # _WIN32_WINNT_VISTA (0x0600)
-    add_definitions(-D_WIN32_WINNT=0x0600)
-    set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_WIN32_WINNT=0x0600")
-  else()
-    # _WIN32_WINNT_WINXP (0x0501)
-    add_definitions(-D_WIN32_WINNT=0x0501)
-    set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_WIN32_WINNT=0x0501")
   endif()
   if(ENABLE_UNICODE)
     add_definitions(-DUNICODE -D_UNICODE)
@@ -109,7 +106,7 @@ option(ENABLE_CURLDEBUG "Set to ON to build with TrackMemory feature enabled" OF
 
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
   if(PICKY_COMPILER)
-    foreach(_CCOPT -pedantic -Wall -W -Wpointer-arith -Wwrite-strings -Wunused -Wshadow -Winline -Wnested-externs -Wmissing-declarations -Wmissing-prototypes -Wfloat-equal -Wsign-compare -Wundef -Wendif-labels -Wstrict-prototypes -Wdeclaration-after-statement -Wstrict-aliasing=3 -Wcast-align -Wtype-limits -Wold-style-declaration -Wmissing-parameter-type -Wempty-body -Wclobbered -Wignored-qualifiers -Wconversion -Wvla -Wdouble-promotion)
+    foreach(_CCOPT -pedantic -Wall -W -Wpointer-arith -Wwrite-strings -Wunused -Wshadow -Winline -Wnested-externs -Wmissing-declarations -Wmissing-prototypes -Wfloat-equal -Wsign-compare -Wundef -Wendif-labels -Wstrict-prototypes -Wdeclaration-after-statement -Wstrict-aliasing=3 -Wcast-align -Wtype-limits -Wold-style-declaration -Wmissing-parameter-type -Wempty-body -Wclobbered -Wignored-qualifiers -Wconversion -Wvla -Wdouble-promotion -Wenum-conversion -Warith-conversion)
       # surprisingly, CHECK_C_COMPILER_FLAG needs a new variable to store each new
       # test result in.
       string(MAKE_C_IDENTIFIER "OPT${_CCOPT}" _optvarname)
@@ -259,6 +256,17 @@ if(ENABLE_IPV6 AND NOT WIN32)
     set(ENABLE_IPV6 OFF
         CACHE BOOL "Define if you want to enable IPv6 support" FORCE)
   endif()
+
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT ENABLE_ARES)
+    set(use_core_foundation ON)
+
+    find_library(SYSTEMCONFIGURATION_FRAMEWORK "SystemConfiguration")
+    if(NOT SYSTEMCONFIGURATION_FRAMEWORK)
+      message(FATAL_ERROR "SystemConfiguration framework not found")
+    endif()
+
+    list(APPEND CURL_LIBS "-framework SystemConfiguration")
+  endif()
 endif()
 
 if(USE_MANUAL)
@@ -319,20 +327,7 @@ if(ENABLE_THREADED_RESOLVER)
 endif()
 
 # Check for all needed libraries
-check_library_exists_concat("${CMAKE_DL_LIBS}" dlopen HAVE_LIBDL)
 check_library_exists_concat("socket" connect      HAVE_LIBSOCKET)
-check_library_exists("c" gethostbyname "" NOT_NEED_LIBNSL)
-
-# Yellowtab Zeta needs different libraries than BeOS 5.
-if(BEOS)
-  set(NOT_NEED_LIBNSL 1)
-  check_library_exists_concat("bind" gethostbyname HAVE_LIBBIND)
-  check_library_exists_concat("bnetapi" closesocket HAVE_LIBBNETAPI)
-endif()
-
-if(NOT NOT_NEED_LIBNSL)
-  check_library_exists_concat("nsl"    gethostbyname  HAVE_LIBNSL)
-endif()
 
 check_function_exists(gethostname HAVE_GETHOSTNAME)
 
@@ -341,85 +336,94 @@ if(WIN32)
   check_library_exists_concat("winmm"  getch        HAVE_LIBWINMM)
 endif()
 
+# This check below for use of deprecated symbols is only temporary and is to
+# be removed again after a year's service. Remove after November 25, 2022.
+set(CURL_RECONFIG_REQUIRED 0)
+foreach(_LIB GSSAPI OPENLDAP LIBSSH LIBSSH2 BEARSSL MBEDTLS NSS OPENSSL
+        SCHANNEL SECTRANSP WOLFSSL)
+  if(CMAKE_USE_${_LIB})
+    set(CURL_RECONFIG_REQUIRED 1)
+    message(SEND_ERROR "The option CMAKE_USE_${_LIB} was renamed to CURL_USE_${_LIB}.")
+  endif()
+endforeach()
+if(CMAKE_USE_WINSSL)
+  set(CURL_RECONFIG_REQUIRED 1)
+  message(SEND_ERROR "The option CMAKE_USE_WINSSL was renamed to CURL_USE_SCHANNEL.")
+endif()
+if(CURL_RECONFIG_REQUIRED)
+  message(FATAL_ERROR "Reconfig required")
+endif()
+
 # check SSL libraries
 # TODO support GnuTLS
-if(CMAKE_USE_WINSSL)
-  message(FATAL_ERROR "The cmake option CMAKE_USE_WINSSL was renamed to CMAKE_USE_SCHANNEL.")
-endif()
+option(CURL_ENABLE_SSL "Enable SSL support" ON)
 
 if(APPLE)
-  option(CMAKE_USE_SECTRANSP "enable Apple OS native SSL/TLS" OFF)
+  cmake_dependent_option(CURL_USE_SECTRANSP "enable Apple OS native SSL/TLS" OFF CURL_ENABLE_SSL OFF)
 endif()
 if(WIN32)
-  option(CMAKE_USE_SCHANNEL "enable Windows native SSL/TLS" OFF)
+  cmake_dependent_option(CURL_USE_SCHANNEL "enable Windows native SSL/TLS" OFF CURL_ENABLE_SSL OFF)
   cmake_dependent_option(CURL_WINDOWS_SSPI "Use windows libraries to allow NTLM authentication without openssl" ON
-    CMAKE_USE_SCHANNEL OFF)
+    CURL_USE_SCHANNEL OFF)
 endif()
-option(CMAKE_USE_MBEDTLS "Enable mbedTLS for SSL/TLS" OFF)
-option(CMAKE_USE_BEARSSL "Enable BearSSL for SSL/TLS" OFF)
-option(CMAKE_USE_NSS "Enable NSS for SSL/TLS" OFF)
-option(CMAKE_USE_WOLFSSL "enable wolfSSL for SSL/TLS" OFF)
+cmake_dependent_option(CURL_USE_MBEDTLS "Enable mbedTLS for SSL/TLS" OFF CURL_ENABLE_SSL OFF)
+cmake_dependent_option(CURL_USE_BEARSSL "Enable BearSSL for SSL/TLS" OFF CURL_ENABLE_SSL OFF)
+cmake_dependent_option(CURL_USE_NSS "Enable NSS for SSL/TLS" OFF CURL_ENABLE_SSL OFF)
+cmake_dependent_option(CURL_USE_WOLFSSL "enable wolfSSL for SSL/TLS" OFF CURL_ENABLE_SSL OFF)
 
 set(openssl_default ON)
-if(WIN32 OR CMAKE_USE_SECTRANSP OR CMAKE_USE_SCHANNEL OR CMAKE_USE_MBEDTLS OR CMAKE_USE_NSS OR CMAKE_USE_WOLFSSL)
+if(WIN32 OR CURL_USE_SECTRANSP OR CURL_USE_SCHANNEL OR CURL_USE_MBEDTLS OR CURL_USE_NSS OR CURL_USE_WOLFSSL)
   set(openssl_default OFF)
 endif()
-option(CMAKE_USE_OPENSSL "Use OpenSSL code. Experimental" ${openssl_default})
+cmake_dependent_option(CURL_USE_OPENSSL "Use OpenSSL code. Experimental" ${openssl_default} CURL_ENABLE_SSL OFF)
 option(CURL_DISABLE_OPENSSL_AUTO_LOAD_CONFIG "Disable automatic loading of OpenSSL configuration" OFF)
 
 count_true(enabled_ssl_options_count
-  CMAKE_USE_SCHANNEL
-  CMAKE_USE_SECTRANSP
-  CMAKE_USE_OPENSSL
-  CMAKE_USE_MBEDTLS
-  CMAKE_USE_BEARSSL
-  CMAKE_USE_NSS
-  CMAKE_USE_WOLFSSL
+  CURL_USE_SCHANNEL
+  CURL_USE_SECTRANSP
+  CURL_USE_OPENSSL
+  CURL_USE_MBEDTLS
+  CURL_USE_BEARSSL
+  CURL_USE_NSS
+  CURL_USE_WOLFSSL
 )
 if(enabled_ssl_options_count GREATER "1")
   set(CURL_WITH_MULTI_SSL ON)
 endif()
 
-if(CMAKE_USE_SCHANNEL)
+if(CURL_USE_SCHANNEL)
   set(SSL_ENABLED ON)
   set(USE_SCHANNEL ON) # Windows native SSL/TLS support
-  set(USE_WINDOWS_SSPI ON) # CMAKE_USE_SCHANNEL implies CURL_WINDOWS_SSPI
+  set(USE_WINDOWS_SSPI ON) # CURL_USE_SCHANNEL implies CURL_WINDOWS_SSPI
 endif()
 if(CURL_WINDOWS_SSPI)
   set(USE_WINDOWS_SSPI ON)
   set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -DSECURITY_WIN32")
 endif()
 
-if(CMAKE_USE_DARWINSSL)
-  message(FATAL_ERROR "The cmake option CMAKE_USE_DARWINSSL was renamed to CMAKE_USE_SECTRANSP.")
+if(CURL_USE_SECTRANSP)
+  set(use_core_foundation ON)
+
+  find_library(SECURITY_FRAMEWORK "Security")
+  if(NOT SECURITY_FRAMEWORK)
+     message(FATAL_ERROR "Security framework not found")
+  endif()
+
+  set(SSL_ENABLED ON)
+  set(USE_SECTRANSP ON)
+  list(APPEND CURL_LIBS "-framework Security")
 endif()
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if(use_core_foundation)
   find_library(COREFOUNDATION_FRAMEWORK "CoreFoundation")
   if(NOT COREFOUNDATION_FRAMEWORK)
       message(FATAL_ERROR "CoreFoundation framework not found")
   endif()
 
-  find_library(SYSTEMCONFIGURATION_FRAMEWORK "SystemConfiguration")
-  if(NOT SYSTEMCONFIGURATION_FRAMEWORK)
-     message(FATAL_ERROR "SystemConfiguration framework not found")
-  endif()
-
-  list(APPEND CURL_LIBS "-framework CoreFoundation" "-framework SystemConfiguration")
-
-  if(CMAKE_USE_SECTRANSP)
-    find_library(SECURITY_FRAMEWORK "Security")
-    if(NOT SECURITY_FRAMEWORK)
-       message(FATAL_ERROR "Security framework not found")
-    endif()
-
-    set(SSL_ENABLED ON)
-    set(USE_SECTRANSP ON)
-    list(APPEND CURL_LIBS "-framework Security")
-  endif()
+  list(APPEND CURL_LIBS "-framework CoreFoundation")
 endif()
 
-if(CMAKE_USE_OPENSSL)
+if(CURL_USE_OPENSSL)
   find_package(OpenSSL REQUIRED)
   set(SSL_ENABLED ON)
   set(USE_OPENSSL ON)
@@ -435,19 +439,13 @@ if(CMAKE_USE_OPENSSL)
   endif()
 
   set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-  check_include_file("openssl/crypto.h" HAVE_OPENSSL_CRYPTO_H)
-  check_include_file("openssl/err.h"    HAVE_OPENSSL_ERR_H)
-  check_include_file("openssl/pem.h"    HAVE_OPENSSL_PEM_H)
-  check_include_file("openssl/rsa.h"    HAVE_OPENSSL_RSA_H)
-  check_include_file("openssl/ssl.h"    HAVE_OPENSSL_SSL_H)
-  check_include_file("openssl/x509.h"   HAVE_OPENSSL_X509_H)
-  check_include_file("openssl/rand.h"   HAVE_OPENSSL_RAND_H)
-  check_symbol_exists(RAND_status "${CURL_INCLUDES}" HAVE_RAND_STATUS)
-  check_symbol_exists(RAND_screen "${CURL_INCLUDES}" HAVE_RAND_SCREEN)
-  check_symbol_exists(RAND_egd    "${CURL_INCLUDES}" HAVE_RAND_EGD)
+  check_symbol_exists(RAND_egd "${CURL_INCLUDES}" HAVE_RAND_EGD)
+  check_symbol_exists(OPENSSL_IS_BORINGSSL "openssl/base.h" HAVE_BORINGSSL)
+
+  add_definitions(-DOPENSSL_SUPPRESS_DEPRECATED)
 endif()
 
-if(CMAKE_USE_MBEDTLS)
+if(CURL_USE_MBEDTLS)
   find_package(MbedTLS REQUIRED)
   set(SSL_ENABLED ON)
   set(USE_MBEDTLS ON)
@@ -455,7 +453,7 @@ if(CMAKE_USE_MBEDTLS)
   include_directories(${MBEDTLS_INCLUDE_DIRS})
 endif()
 
-if(CMAKE_USE_BEARSSL)
+if(CURL_USE_BEARSSL)
   find_package(BearSSL REQUIRED)
   set(SSL_ENABLED ON)
   set(USE_BEARSSL ON)
@@ -463,7 +461,7 @@ if(CMAKE_USE_BEARSSL)
   include_directories(${BEARSSL_INCLUDE_DIRS})
 endif()
 
-if(CMAKE_USE_WOLFSSL)
+if(CURL_USE_WOLFSSL)
   find_package(WolfSSL REQUIRED)
   set(SSL_ENABLED ON)
   set(USE_WOLFSSL ON)
@@ -471,7 +469,7 @@ if(CMAKE_USE_WOLFSSL)
   include_directories(${WolfSSL_INCLUDE_DIRS})
 endif()
 
-if(CMAKE_USE_NSS)
+if(CURL_USE_NSS)
   find_package(NSS REQUIRED)
   include_directories(${NSS_INCLUDE_DIRS})
   list(APPEND CURL_LIBS ${NSS_LIBRARIES})
@@ -498,7 +496,7 @@ function(CheckQuicSupportInOpenSSL)
   set(CMAKE_REQUIRED_LIBRARIES  "${OPENSSL_LIBRARIES}")
   check_symbol_exists(SSL_CTX_set_quic_method "openssl/ssl.h" HAVE_SSL_CTX_SET_QUIC_METHOD)
   if(NOT HAVE_SSL_CTX_SET_QUIC_METHOD)
-    message(FATAL_ERROR "QUIC support is missing in OpenSSL/boringssl. Try setting -DOPENSSL_ROOT_DIR")
+    message(FATAL_ERROR "QUIC support is missing in OpenSSL/BoringSSL. Try setting -DOPENSSL_ROOT_DIR")
   endif()
   cmake_pop_check_state()
 endfunction()
@@ -506,7 +504,11 @@ endfunction()
 option(USE_NGTCP2 "Use ngtcp2 and nghttp3 libraries for HTTP/3 support" OFF)
 if(USE_NGTCP2)
   if(USE_OPENSSL)
-    find_package(NGTCP2 REQUIRED OpenSSL)
+    if(HAVE_BORINGSSL)
+      find_package(NGTCP2 REQUIRED BoringSSL)
+    else()
+      find_package(NGTCP2 REQUIRED OpenSSL)
+    endif()
     CheckQuicSupportInOpenSSL()
   elseif(USE_GNUTLS)
     # TODO add GnuTLS support as vtls library.
@@ -541,6 +543,16 @@ if(USE_QUICHE)
   cmake_pop_check_state()
 endif()
 
+option(USE_MSH3 "Use msquic library for HTTP/3 support" OFF)
+if(USE_MSH3)
+  if(USE_NGTCP2 OR USE_QUICHE)
+    message(FATAL_ERROR "Only one HTTP/3 backend can be selected!")
+  endif()
+  set(USE_MSH3 ON)
+  include_directories(${MSH3_INCLUDE_DIRS})
+  list(APPEND CURL_LIBS ${MSH3_LIBRARIES})
+endif()
+
 if(NOT CURL_DISABLE_LDAP)
   if(WIN32)
     option(USE_WIN32_LDAP "Use Windows LDAP implementation" ON)
@@ -552,19 +564,18 @@ if(NOT CURL_DISABLE_LDAP)
     endif()
   endif()
 
-  option(CMAKE_USE_OPENLDAP "Use OpenLDAP code." OFF)
-  mark_as_advanced(CMAKE_USE_OPENLDAP)
+  option(CURL_USE_OPENLDAP "Use OpenLDAP code." OFF)
+  mark_as_advanced(CURL_USE_OPENLDAP)
   set(CMAKE_LDAP_LIB "ldap" CACHE STRING "Name or full path to ldap library")
   set(CMAKE_LBER_LIB "lber" CACHE STRING "Name or full path to lber library")
 
-  if(CMAKE_USE_OPENLDAP AND USE_WIN32_LDAP)
-    message(FATAL_ERROR "Cannot use USE_WIN32_LDAP and CMAKE_USE_OPENLDAP at the same time")
+  if(CURL_USE_OPENLDAP AND USE_WIN32_LDAP)
+    message(FATAL_ERROR "Cannot use USE_WIN32_LDAP and CURL_USE_OPENLDAP at the same time")
   endif()
 
   # Now that we know, we're not using windows LDAP...
   if(USE_WIN32_LDAP)
     check_include_file_concat("winldap.h" HAVE_WINLDAP_H)
-    check_include_file_concat("winber.h"  HAVE_WINBER_H)
   else()
     # Check for LDAP
     set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
@@ -588,7 +599,7 @@ if(NOT CURL_DISABLE_LDAP)
       set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
       set(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES_BAK}) #LDAP includes won't be used
     else()
-      if(CMAKE_USE_OPENLDAP)
+      if(CURL_USE_OPENLDAP)
         set(USE_OPENLDAP ON)
       endif()
       if(CMAKE_LDAP_INCLUDE_DIR)
@@ -647,26 +658,23 @@ endif()
 
 if(NOT CURL_DISABLE_LDAPS)
   check_include_file_concat("ldap_ssl.h" HAVE_LDAP_SSL_H)
-  check_include_file_concat("ldapssl.h"  HAVE_LDAPSSL_H)
 endif()
 
-# Check for idn
+# Check for idn2
 option(USE_LIBIDN2 "Use libidn2 for IDN support" ON)
-set(HAVE_LIBIDN2 OFF)
 if(USE_LIBIDN2)
   check_library_exists_concat("idn2" idn2_lookup_ul HAVE_LIBIDN2)
+else()
+  set(HAVE_LIBIDN2 OFF)
 endif()
 
 if(WIN32)
   option(USE_WIN32_IDN "Use WinIDN for IDN support" OFF)
   if(USE_WIN32_IDN)
-    list(APPEND CURL_LIBS "Normaliz")
+    list(APPEND CURL_LIBS "normaliz")
     set(WANT_IDN_PROTOTYPES ON)
   endif()
 endif()
-
-# Check for symbol dlopen (same as HAVE_LIBDL)
-check_library_exists("${CURL_LIBS}" dlopen "" HAVE_DLOPEN)
 
 set(HAVE_LIBZ OFF)
 set(HAVE_ZLIB_H OFF)
@@ -717,14 +725,39 @@ if(CURL_ZSTD)
   endif()
 endif()
 
+#libpsl
+option(CURL_USE_LIBPSL "Use libPSL" ON)
+mark_as_advanced(CURL_USE_LIBPSL)
+set(USE_LIBPSL OFF)
+set(HAVE_LIBPSL OFF)
+set(HAVE_LIBSPSL_H OFF)
+
+if(CURL_USE_LIBPSL)
+  find_package(LibPSL)
+  if(LIBPSL_FOUND)
+    list(APPEND CURL_LIBS ${LIBPSL_LIBRARY})
+    set(CMAKE_REQUIRED_LIBRARIES ${LIBPSL_LIBRARY})
+    list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPSL_INCLUDE_DIR}")
+    include_directories("${LIBPSL_INCLUDE_DIR}")
+    set(HAVE_LIBPSL ON)
+    set(USE_LIBPSL ON)
+
+    # find_package has already found the headers
+    set(HAVE_LIBPSL_H ON)
+    set(CURL_INCLUDES ${CURL_INCLUDES} "${LIBPSL_INCLUDE_DIR}/libpsl.h")
+    set(CURL_TEST_DEFINES "${CURL_TEST_DEFINES} -DHAVE_LIBPSL_H")
+    unset(CMAKE_REQUIRED_LIBRARIES)
+  endif()
+endif()
+
 #libSSH2
-option(CMAKE_USE_LIBSSH2 "Use libSSH2" ON)
-mark_as_advanced(CMAKE_USE_LIBSSH2)
+option(CURL_USE_LIBSSH2 "Use libSSH2" ON)
+mark_as_advanced(CURL_USE_LIBSSH2)
 set(USE_LIBSSH2 OFF)
 set(HAVE_LIBSSH2 OFF)
 set(HAVE_LIBSSH2_H OFF)
 
-if(CMAKE_USE_LIBSSH2)
+if(CURL_USE_LIBSSH2)
   find_package(LibSSH2)
   if(LIBSSH2_FOUND)
     list(APPEND CURL_LIBS ${LIBSSH2_LIBRARY})
@@ -743,9 +776,9 @@ if(CMAKE_USE_LIBSSH2)
 endif()
 
 # libssh
-option(CMAKE_USE_LIBSSH "Use libSSH" OFF)
-mark_as_advanced(CMAKE_USE_LIBSSH)
-if(NOT HAVE_LIBSSH2 AND CMAKE_USE_LIBSSH)
+option(CURL_USE_LIBSSH "Use libSSH" OFF)
+mark_as_advanced(CURL_USE_LIBSSH)
+if(NOT HAVE_LIBSSH2 AND CURL_USE_LIBSSH)
   find_package(libssh CONFIG)
   if(libssh_FOUND)
     message(STATUS "Found libssh ${libssh_VERSION}")
@@ -756,10 +789,10 @@ if(NOT HAVE_LIBSSH2 AND CMAKE_USE_LIBSSH)
   endif()
 endif()
 
-option(CMAKE_USE_GSSAPI "Use GSSAPI implementation (right now only Heimdal is supported with CMake build)" OFF)
-mark_as_advanced(CMAKE_USE_GSSAPI)
+option(CURL_USE_GSSAPI "Use GSSAPI implementation (right now only Heimdal is supported with CMake build)" OFF)
+mark_as_advanced(CURL_USE_GSSAPI)
 
-if(CMAKE_USE_GSSAPI)
+if(CURL_USE_GSSAPI)
   find_package(GSS)
 
   set(HAVE_GSSAPI ${GSS_FOUND})
@@ -908,13 +941,11 @@ endif()
 # Check for header files
 if(NOT UNIX)
   check_include_file_concat("windows.h"      HAVE_WINDOWS_H)
-  check_include_file_concat("winsock.h"      HAVE_WINSOCK_H)
   check_include_file_concat("ws2tcpip.h"     HAVE_WS2TCPIP_H)
   check_include_file_concat("winsock2.h"     HAVE_WINSOCK2_H)
   check_include_file_concat("wincrypt.h"     HAVE_WINCRYPT_H)
 endif()
 
-check_include_file_concat("stdio.h"          HAVE_STDIO_H)
 check_include_file_concat("inttypes.h"       HAVE_INTTYPES_H)
 check_include_file_concat("sys/filio.h"      HAVE_SYS_FILIO_H)
 check_include_file_concat("sys/ioctl.h"      HAVE_SYS_IOCTL_H)
@@ -927,11 +958,9 @@ check_include_file_concat("sys/sockio.h"     HAVE_SYS_SOCKIO_H)
 check_include_file_concat("sys/stat.h"       HAVE_SYS_STAT_H)
 check_include_file_concat("sys/time.h"       HAVE_SYS_TIME_H)
 check_include_file_concat("sys/types.h"      HAVE_SYS_TYPES_H)
-check_include_file_concat("sys/uio.h"        HAVE_SYS_UIO_H)
 check_include_file_concat("sys/un.h"         HAVE_SYS_UN_H)
 check_include_file_concat("sys/utime.h"      HAVE_SYS_UTIME_H)
 check_include_file_concat("sys/xattr.h"      HAVE_SYS_XATTR_H)
-check_include_file_concat("alloca.h"         HAVE_ALLOCA_H)
 check_include_file_concat("arpa/inet.h"      HAVE_ARPA_INET_H)
 check_include_file_concat("arpa/tftp.h"      HAVE_ARPA_TFTP_H)
 check_include_file_concat("assert.h"         HAVE_ASSERT_H)
@@ -940,7 +969,6 @@ check_include_file_concat("fcntl.h"          HAVE_FCNTL_H)
 check_include_file_concat("idn2.h"           HAVE_IDN2_H)
 check_include_file_concat("ifaddrs.h"        HAVE_IFADDRS_H)
 check_include_file_concat("io.h"             HAVE_IO_H)
-check_include_file_concat("krb.h"            HAVE_KRB_H)
 check_include_file_concat("libgen.h"         HAVE_LIBGEN_H)
 check_include_file_concat("locale.h"         HAVE_LOCALE_H)
 check_include_file_concat("net/if.h"         HAVE_NET_IF_H)
@@ -949,15 +977,14 @@ check_include_file_concat("netinet/in.h"     HAVE_NETINET_IN_H)
 check_include_file_concat("netinet/tcp.h"    HAVE_NETINET_TCP_H)
 check_include_file("linux/tcp.h"      HAVE_LINUX_TCP_H)
 
-check_include_file_concat("pem.h"            HAVE_PEM_H)
 check_include_file_concat("poll.h"           HAVE_POLL_H)
 check_include_file_concat("pwd.h"            HAVE_PWD_H)
 check_include_file_concat("setjmp.h"         HAVE_SETJMP_H)
 check_include_file_concat("signal.h"         HAVE_SIGNAL_H)
 check_include_file_concat("ssl.h"            HAVE_SSL_H)
+check_include_file_concat("stdatomic.h"      HAVE_STDATOMIC_H)
 check_include_file_concat("stdbool.h"        HAVE_STDBOOL_H)
 check_include_file_concat("stdint.h"         HAVE_STDINT_H)
-check_include_file_concat("stdio.h"          HAVE_STDIO_H)
 check_include_file_concat("stdlib.h"         HAVE_STDLIB_H)
 check_include_file_concat("string.h"         HAVE_STRING_H)
 check_include_file_concat("strings.h"        HAVE_STRINGS_H)
@@ -967,26 +994,18 @@ check_include_file_concat("termios.h"        HAVE_TERMIOS_H)
 check_include_file_concat("time.h"           HAVE_TIME_H)
 check_include_file_concat("unistd.h"         HAVE_UNISTD_H)
 check_include_file_concat("utime.h"          HAVE_UTIME_H)
-check_include_file_concat("x509.h"           HAVE_X509_H)
 
 check_include_file_concat("process.h"        HAVE_PROCESS_H)
 check_include_file_concat("stddef.h"         HAVE_STDDEF_H)
-check_include_file_concat("dlfcn.h"          HAVE_DLFCN_H)
-check_include_file_concat("malloc.h"         HAVE_MALLOC_H)
-check_include_file_concat("memory.h"         HAVE_MEMORY_H)
-check_include_file_concat("netinet/if_ether.h" HAVE_NETINET_IF_ETHER_H)
 check_include_file_concat("stdint.h"        HAVE_STDINT_H)
-check_include_file_concat("sockio.h"        HAVE_SOCKIO_H)
 check_include_file_concat("sys/utsname.h"   HAVE_SYS_UTSNAME_H)
 
 check_type_size(size_t  SIZEOF_SIZE_T)
 check_type_size(ssize_t  SIZEOF_SSIZE_T)
 check_type_size("long long"  SIZEOF_LONG_LONG)
 check_type_size("long"  SIZEOF_LONG)
-check_type_size("short"  SIZEOF_SHORT)
 check_type_size("int"  SIZEOF_INT)
 check_type_size("__int64"  SIZEOF___INT64)
-check_type_size("long double"  SIZEOF_LONG_DOUBLE)
 check_type_size("time_t"  SIZEOF_TIME_T)
 if(NOT HAVE_SIZEOF_SSIZE_T)
   if(SIZEOF_LONG EQUAL SIZEOF_SIZE_T)
@@ -1000,11 +1019,12 @@ endif()
 
 if(HAVE_SIZEOF_LONG_LONG)
   set(HAVE_LONGLONG 1)
-  set(HAVE_LL 1)
 endif()
 
-find_file(RANDOM_FILE urandom /dev)
-mark_as_advanced(RANDOM_FILE)
+if(NOT CMAKE_CROSSCOMPILING)
+  find_file(RANDOM_FILE urandom /dev)
+  mark_as_advanced(RANDOM_FILE)
+endif()
 
 # Check for some functions that are used
 if(HAVE_LIBWS2_32)
@@ -1013,40 +1033,29 @@ elseif(HAVE_LIBSOCKET)
   set(CMAKE_REQUIRED_LIBRARIES socket)
 endif()
 
+check_symbol_exists(fchmod        "${CURL_INCLUDES}" HAVE_FCHMOD)
 check_symbol_exists(basename      "${CURL_INCLUDES}" HAVE_BASENAME)
 check_symbol_exists(socket        "${CURL_INCLUDES}" HAVE_SOCKET)
 check_symbol_exists(select        "${CURL_INCLUDES}" HAVE_SELECT)
-check_symbol_exists(poll          "${CURL_INCLUDES}" HAVE_POLL)
 check_symbol_exists(strdup        "${CURL_INCLUDES}" HAVE_STRDUP)
-check_symbol_exists(strstr        "${CURL_INCLUDES}" HAVE_STRSTR)
 check_symbol_exists(strtok_r      "${CURL_INCLUDES}" HAVE_STRTOK_R)
-check_symbol_exists(strftime      "${CURL_INCLUDES}" HAVE_STRFTIME)
-check_symbol_exists(uname         "${CURL_INCLUDES}" HAVE_UNAME)
 check_symbol_exists(strcasecmp    "${CURL_INCLUDES}" HAVE_STRCASECMP)
 check_symbol_exists(stricmp       "${CURL_INCLUDES}" HAVE_STRICMP)
 check_symbol_exists(strcmpi       "${CURL_INCLUDES}" HAVE_STRCMPI)
-check_symbol_exists(strncmpi      "${CURL_INCLUDES}" HAVE_STRNCMPI)
 check_symbol_exists(alarm         "${CURL_INCLUDES}" HAVE_ALARM)
-if(NOT HAVE_STRNCMPI)
-  set(HAVE_STRCMPI)
-endif()
 check_symbol_exists(getppid       "${CURL_INCLUDES}" HAVE_GETPPID)
 check_symbol_exists(utimes        "${CURL_INCLUDES}" HAVE_UTIMES)
 
 check_symbol_exists(gettimeofday  "${CURL_INCLUDES}" HAVE_GETTIMEOFDAY)
-check_symbol_exists(inet_addr     "${CURL_INCLUDES}" HAVE_INET_ADDR)
 check_symbol_exists(closesocket   "${CURL_INCLUDES}" HAVE_CLOSESOCKET)
 check_symbol_exists(sigsetjmp     "${CURL_INCLUDES}" HAVE_SIGSETJMP)
 check_symbol_exists(getpass_r     "${CURL_INCLUDES}" HAVE_GETPASS_R)
 check_symbol_exists(getpwuid      "${CURL_INCLUDES}" HAVE_GETPWUID)
 check_symbol_exists(getpwuid_r    "${CURL_INCLUDES}" HAVE_GETPWUID_R)
 check_symbol_exists(geteuid       "${CURL_INCLUDES}" HAVE_GETEUID)
-check_symbol_exists(usleep        "${CURL_INCLUDES}" HAVE_USLEEP)
 check_symbol_exists(utime         "${CURL_INCLUDES}" HAVE_UTIME)
 check_symbol_exists(gmtime_r      "${CURL_INCLUDES}" HAVE_GMTIME_R)
-check_symbol_exists(localtime_r   "${CURL_INCLUDES}" HAVE_LOCALTIME_R)
 
-check_symbol_exists(gethostbyname   "${CURL_INCLUDES}" HAVE_GETHOSTBYNAME)
 check_symbol_exists(gethostbyname_r "${CURL_INCLUDES}" HAVE_GETHOSTBYNAME_R)
 
 check_symbol_exists(signal        "${CURL_INCLUDES}" HAVE_SIGNAL_FUNC)
@@ -1054,7 +1063,6 @@ check_symbol_exists(SIGALRM       "${CURL_INCLUDES}" HAVE_SIGNAL_MACRO)
 if(HAVE_SIGNAL_FUNC AND HAVE_SIGNAL_MACRO)
   set(HAVE_SIGNAL 1)
 endif()
-check_symbol_exists(uname          "${CURL_INCLUDES}" HAVE_UNAME)
 check_symbol_exists(strtoll        "${CURL_INCLUDES}" HAVE_STRTOLL)
 check_symbol_exists(_strtoi64      "${CURL_INCLUDES}" HAVE__STRTOI64)
 check_symbol_exists(strerror_r     "${CURL_INCLUDES}" HAVE_STRERROR_R)
@@ -1063,7 +1071,6 @@ check_symbol_exists(getaddrinfo    "${CURL_INCLUDES}" HAVE_GETADDRINFO)
 check_symbol_exists(freeaddrinfo   "${CURL_INCLUDES}" HAVE_FREEADDRINFO)
 check_symbol_exists(pipe           "${CURL_INCLUDES}" HAVE_PIPE)
 check_symbol_exists(ftruncate      "${CURL_INCLUDES}" HAVE_FTRUNCATE)
-check_symbol_exists(getprotobyname "${CURL_INCLUDES}" HAVE_GETPROTOBYNAME)
 check_symbol_exists(getpeername    "${CURL_INCLUDES}" HAVE_GETPEERNAME)
 check_symbol_exists(getsockname    "${CURL_INCLUDES}" HAVE_GETSOCKNAME)
 check_symbol_exists(if_nametoindex "${CURL_INCLUDES}" HAVE_IF_NAMETOINDEX)
@@ -1071,9 +1078,6 @@ check_symbol_exists(getrlimit      "${CURL_INCLUDES}" HAVE_GETRLIMIT)
 check_symbol_exists(setlocale      "${CURL_INCLUDES}" HAVE_SETLOCALE)
 check_symbol_exists(setmode        "${CURL_INCLUDES}" HAVE_SETMODE)
 check_symbol_exists(setrlimit      "${CURL_INCLUDES}" HAVE_SETRLIMIT)
-check_symbol_exists(fcntl          "${CURL_INCLUDES}" HAVE_FCNTL)
-check_symbol_exists(ioctl          "${CURL_INCLUDES}" HAVE_IOCTL)
-check_symbol_exists(setsockopt     "${CURL_INCLUDES}" HAVE_SETSOCKOPT)
 check_function_exists(mach_absolute_time HAVE_MACH_ABSOLUTE_TIME)
 check_symbol_exists(inet_pton      "${CURL_INCLUDES}" HAVE_INET_PTON)
 
@@ -1140,6 +1144,7 @@ foreach(CURL_TEST
     HAVE_FILE_OFFSET_BITS
     HAVE_VARIADIC_MACROS_C99
     HAVE_VARIADIC_MACROS_GCC
+    HAVE_ATOMIC
     )
   curl_internal_test(${CURL_TEST})
 endforeach()
@@ -1155,6 +1160,19 @@ set(CMAKE_REQUIRED_INCLUDES "${CURL_SOURCE_DIR}/include")
 set(CMAKE_EXTRA_INCLUDE_FILES "curl/system.h")
 check_type_size("curl_off_t"  SIZEOF_CURL_OFF_T)
 set(CMAKE_EXTRA_INCLUDE_FILES "")
+
+if(WIN32)
+  # detect actual value of _WIN32_WINNT and store as HAVE_WIN32_WINNT
+  curl_internal_test(HAVE_WIN32_WINNT)
+  if(HAVE_WIN32_WINNT)
+    string(REGEX MATCH ".*_WIN32_WINNT=0x[0-9a-fA-F]+" OUTPUT "${OUTPUT}")
+    string(REGEX REPLACE ".*_WIN32_WINNT=" "" OUTPUT "${OUTPUT}")
+    math(EXPR HAVE_WIN32_WINNT "${OUTPUT}" OUTPUT_FORMAT DECIMAL)
+    message(STATUS "Found _WIN32_WINNT=${OUTPUT} (${HAVE_WIN32_WINNT})")
+  endif()
+  # avoid storing HAVE_WIN32_WINNT in CMake cache
+  unset(HAVE_WIN32_WINNT CACHE)
+endif()
 
 set(CMAKE_REQUIRED_FLAGS)
 
@@ -1272,6 +1290,8 @@ if(WIN32)
   if(USE_WIN32_CRYPTO OR USE_SCHANNEL)
     list(APPEND CURL_LIBS "advapi32" "crypt32")
   endif()
+
+  list(APPEND CURL_LIBS "bcrypt")
 endif()
 
 if(MSVC)
@@ -1412,6 +1432,9 @@ _add_if("HTTP3"         USE_NGTCP2 OR USE_QUICHE)
 _add_if("MultiSSL"      CURL_WITH_MULTI_SSL)
 _add_if("HTTPS-proxy"   SSL_ENABLED AND (USE_OPENSSL OR USE_GNUTLS OR USE_NSS))
 _add_if("unicode"       ENABLE_UNICODE)
+_add_if("threadsafe"    HAVE_ATOMIC OR (WIN32 AND
+                        HAVE_WIN32_WINNT GREATER_EQUAL 0x600))
+_add_if("PSL"           USE_LIBPSL)
 string(REPLACE ";" " " SUPPORT_FEATURES "${_items}")
 message(STATUS "Enabled features: ${SUPPORT_FEATURES}")
 
@@ -1484,12 +1507,10 @@ set(libdir                  "${CMAKE_INSTALL_PREFIX}/lib")
 foreach(_lib ${CMAKE_C_IMPLICIT_LINK_LIBRARIES} ${CURL_LIBS})
   if(TARGET "${_lib}")
     set(_libname "${_lib}")
-    get_target_property(_libtype "${_libname}" TYPE)
-    if(_libtype STREQUAL INTERFACE_LIBRARY)
-      # Interface libraries can occur when an external project embeds curl and
-      # defined targets such as ZLIB::ZLIB by themselves. Ignore these as
-      # reading the LOCATION property will error out. Assume the user won't need
-      # this information in the .pc file.
+    get_target_property(_imported "${_libname}" IMPORTED)
+    if(NOT _imported)
+      # Reading the LOCATION property on non-imported target will error out.
+      # Assume the user won't need this information in the .pc file.
       continue()
     endif()
     get_target_property(_lib "${_libname}" LOCATION)

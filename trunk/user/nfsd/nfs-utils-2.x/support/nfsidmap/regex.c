@@ -157,6 +157,7 @@ again:
 	IDMAP_LOG(4, ("regexp_getpwnam: name '%s' mapped to '%s'",
 		  name, localname));
 
+	free(localname);
 	*err_p = 0;
 	return pw;
 

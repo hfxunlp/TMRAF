@@ -46,7 +46,7 @@
 #include "gss_oids.h"
 #include "err_util.h"
 #include "svcgssd_krb5.h"
-#include "../mount/version.h"
+#include "version.h"
 
 #define MYBUFLEN 1024
 

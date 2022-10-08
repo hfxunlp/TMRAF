@@ -37,6 +37,15 @@ check_root() {
 	fi
 }
 
+# Most tests require /dev/log. Skip the test if it doesn't exist in this
+# environment.
+check_dev_log() {
+	if ! [ -e /dev/log ]; then
+		echo "*** Skipping this tests as it requires /dev/log ***"
+		exit 77
+	fi
+}
+
 # is lockd registered as a service?
 lockd_registered() {
 	rpcinfo -p | grep -q nlockmgr

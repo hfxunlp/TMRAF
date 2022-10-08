@@ -6,7 +6,8 @@ and
 [`--ciphers`](https://curl.se/docs/manpage.html#--ciphers)
 users can control which ciphers to consider when negotiating TLS connections.
 
-TLS 1.3 ciphers are supported since curl 7.61 for OpenSSL 1.1.1+ with options
+TLS 1.3 ciphers are supported since curl 7.61 for OpenSSL 1.1.1+, and since
+curl 7.85 for SChannel with options
 [`CURLOPT_TLS13_CIPHERS`](https://curl.se/libcurl/c/CURLOPT_TLS13_CIPHERS.html)
 and
 [`--tls13-ciphers`](https://curl.se/docs/manpage.html#--tls13-ciphers)
@@ -18,7 +19,7 @@ libcurl was built to use. This is an attempt to list known cipher names.
 
 ## OpenSSL
 
-(based on [OpenSSL docs](https://www.openssl.org/docs/man1.1.0/apps/ciphers.html))
+(based on [OpenSSL docs](https://www.openssl.org/docs/manmaster/man1/openssl-ciphers.html))
 
 When specifying multiple cipher names, separate them with colon (`:`).
 
@@ -278,9 +279,9 @@ When specifying multiple cipher names, separate them with colon (`:`).
 
 ## GSKit
 
-Ciphers are internally defined as
-[numeric codes](https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_73/apis/gsk_attribute_set_buffer.htm),
-but libcurl maps them to the following case-insensitive names.
+Ciphers are internally defined as [numeric
+codes](https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_73/apis/gsk_attribute_set_buffer.htm). libcurl
+maps them to the following case-insensitive names.
 
 ### SSL2 cipher suites (insecure: disabled by default)
 
@@ -518,5 +519,73 @@ and the request will fail.
 As of curl 7.77.0, you can also pass `SCH_USE_STRONG_CRYPTO` as a cipher name
 to [constrain the set of available ciphers as specified in the schannel
 documentation](https://docs.microsoft.com/en-us/windows/win32/secauthn/tls-cipher-suites-in-windows-server-2022).
-Note that the supported ciphers in this case follows the OS version, so if you
+Note that the supported ciphers in this case follow the OS version, so if you
 are running an outdated OS you might still be supporting weak ciphers.
+
+### TLS 1.3 cipher suites
+
+(Note these ciphers are set with `CURLOPT_TLS13_CIPHERS` and `--tls13-ciphers`)
+
+`TLS_AES_256_GCM_SHA384`
+`TLS_AES_128_GCM_SHA256`
+`TLS_CHACHA20_POLY1305_SHA256`
+`TLS_AES_128_CCM_8_SHA256`
+`TLS_AES_128_CCM_SHA256`
+
+## BearSSL
+
+BearSSL ciphers can be specified by either the OpenSSL name (`ECDHE-RSA-AES128-GCM-SHA256`) or the IANA name (`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`).
+
+Since BearSSL 0.1:
+
+`DES-CBC3-SHA`
+`AES128-SHA`
+`AES256-SHA`
+`AES128-SHA256`
+`AES256-SHA256`
+`AES128-GCM-SHA256`
+`AES256-GCM-SHA384`
+`ECDH-ECDSA-DES-CBC3-SHA`
+`ECDH-ECDSA-AES128-SHA`
+`ECDH-ECDSA-AES256-SHA`
+`ECDHE-ECDSA-DES-CBC3-SHA`
+`ECDHE-ECDSA-AES128-SHA`
+`ECDHE-ECDSA-AES256-SHA`
+`ECDH-RSA-DES-CBC3-SHA`
+`ECDH-RSA-AES128-SHA`
+`ECDH-RSA-AES256-SHA`
+`ECDHE-RSA-DES-CBC3-SHA`
+`ECDHE-RSA-AES128-SHA`
+`ECDHE-RSA-AES256-SHA`
+`ECDHE-ECDSA-AES128-SHA256`
+`ECDHE-ECDSA-AES256-SHA384`
+`ECDH-ECDSA-AES128-SHA256`
+`ECDH-ECDSA-AES256-SHA384`
+`ECDHE-RSA-AES128-SHA256`
+`ECDHE-RSA-AES256-SHA384`
+`ECDH-RSA-AES128-SHA256`
+`ECDH-RSA-AES256-SHA384`
+`ECDHE-ECDSA-AES128-GCM-SHA256`
+`ECDHE-ECDSA-AES256-GCM-SHA384`
+`ECDH-ECDSA-AES128-GCM-SHA256`
+`ECDH-ECDSA-AES256-GCM-SHA384`
+`ECDHE-RSA-AES128-GCM-SHA256`
+`ECDHE-RSA-AES256-GCM-SHA384`
+`ECDH-RSA-AES128-GCM-SHA256`
+`ECDH-RSA-AES256-GCM-SHA384`
+
+Since BearSSL 0.2:
+
+`ECDHE-RSA-CHACHA20-POLY1305`
+`ECDHE-ECDSA-CHACHA20-POLY1305`
+
+Since BearSSL 0.6:
+
+`AES128-CCM`
+`AES256-CCM`
+`AES128-CCM8`
+`AES256-CCM8`
+`ECDHE-ECDSA-AES128-CCM`
+`ECDHE-ECDSA-AES256-CCM`
+`ECDHE-ECDSA-AES128-CCM8`
+`ECDHE-ECDSA-AES256-CCM8`

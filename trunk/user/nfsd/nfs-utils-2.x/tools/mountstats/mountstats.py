@@ -482,8 +482,11 @@ class DeviceData:
             count = stats[1]
             if count != 0:
                 print('%s:' % stats[0])
+                ops_pcnt = 0
+                if sends != 0:
+                    ops_pcnt = (count * 100) / sends
                 print('\t%d ops (%d%%)' % \
-                    (count, ((count * 100) / sends)), end=' ')
+                    (count, ops_pcnt), end=' ')
                 retrans = stats[2] - count
                 if retrans != 0:
                     print('\t%d retrans (%d%%)' % (retrans, ((retrans * 100) / count)), end=' ')

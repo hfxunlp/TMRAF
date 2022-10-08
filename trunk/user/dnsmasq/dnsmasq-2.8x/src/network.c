@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2022 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,13 +114,8 @@ int iface_check(int family, union all_addr *addr, char *name, int *auth)
   struct iname *tmp;
   int ret = 1, match_addr = 0;
 
-  /* Note: have to check all and not bail out early, so that we set the
-     "used" flags.
-
-     May be called with family == AF_LOCALto check interface by name only. */
-  
-  if (auth)
-    *auth = 0;
+  /* Note: have to check all and not bail out early, so that we set the "used" flags.
+     May be called with family == AF_LOCAL to check interface by name only. */
   
   if (daemon->if_names || daemon->if_addrs)
     {
@@ -149,25 +144,29 @@ int iface_check(int family, union all_addr *addr, char *name, int *auth)
       if (tmp->name && wildcard_match(tmp->name, name))
 	ret = 0;
     
-
-  for (tmp = daemon->authinterface; tmp; tmp = tmp->next)
-    if (tmp->name)
-      {
-	if (strcmp(tmp->name, name) == 0 &&
-	    (tmp->addr.sa.sa_family == 0 || tmp->addr.sa.sa_family == family))
-	  break;
-      }
-    else if (addr && tmp->addr.sa.sa_family == AF_INET && family == AF_INET &&
-	     tmp->addr.in.sin_addr.s_addr == addr->addr4.s_addr)
-      break;
-    else if (addr && tmp->addr.sa.sa_family == AF_INET6 && family == AF_INET6 &&
-	     IN6_ARE_ADDR_EQUAL(&tmp->addr.in6.sin6_addr, &addr->addr6))
-      break;
-
-  if (tmp && auth) 
+  if (auth)
     {
-      *auth = 1;
-      ret = 1;
+      *auth = 0;
+
+      for (tmp = daemon->authinterface; tmp; tmp = tmp->next)
+	if (tmp->name)
+	  {
+	    if (strcmp(tmp->name, name) == 0 &&
+		(tmp->addr.sa.sa_family == 0 || tmp->addr.sa.sa_family == family))
+	      break;
+	  }
+	else if (addr && tmp->addr.sa.sa_family == AF_INET && family == AF_INET &&
+		 tmp->addr.in.sin_addr.s_addr == addr->addr4.s_addr)
+	  break;
+	else if (addr && tmp->addr.sa.sa_family == AF_INET6 && family == AF_INET6 &&
+		 IN6_ARE_ADDR_EQUAL(&tmp->addr.in6.sin6_addr, &addr->addr6))
+	  break;
+      
+      if (tmp) 
+	{
+	  *auth = 1;
+	  ret = 1;
+	}
     }
 
   return ret; 
@@ -232,6 +231,7 @@ static int iface_allowed(struct iface_param *param, int if_index, char *label,
 			 union mysockaddr *addr, struct in_addr netmask, int prefixlen, int iface_flags) 
 {
   struct irec *iface;
+  struct cond_domain *cond;
   int loopback;
   struct ifreq ifr;
   int tftp_ok = !!option_bool(OPT_TFTP);
@@ -454,7 +454,37 @@ static int iface_allowed(struct iface_param *param, int if_index, char *label,
 	      }
 	  }
     }
- 
+
+  /* Update addresses for domain=<domain>,<interface> */
+  for (cond = daemon->cond_domain; cond; cond = cond->next)
+    if (cond->interface && strncmp(label, cond->interface, IF_NAMESIZE) == 0)
+      {
+	struct addrlist *al;
+
+	if (param->spare)
+	  {
+	    al = param->spare;
+	    param->spare = al->next;
+	  }
+	else
+	  al = whine_malloc(sizeof(struct addrlist));
+
+	if (addr->sa.sa_family == AF_INET)
+	  {
+	    al->addr.addr4 = addr->in.sin_addr;
+	    al->flags = 0;
+	  }
+	else
+	  {
+	    al->addr.addr6 =  addr->in6.sin6_addr;
+	    al->flags = ADDRLIST_IPV6;
+	  }
+
+	al->prefixlen = prefixlen;
+	al->next = cond->al;
+	cond->al = al;
+      }
+  
   /* check whether the interface IP has been added already 
      we call this routine multiple times. */
   for (iface = daemon->interfaces; iface; iface = iface->next) 
@@ -692,6 +722,7 @@ int enumerate_interfaces(int reset)
   int errsave, ret = 1;
   struct addrlist *addr, *tmp;
   struct interface_name *intname;
+  struct cond_domain *cond;
   struct irec *iface;
 #ifdef HAVE_AUTH
   struct auth_zone *zone;
@@ -751,6 +782,19 @@ again:
       intname->addr = NULL;
     }
 
+  /* remove addresses stored against cond-domains. */
+  for (cond = daemon->cond_domain; cond; cond = cond->next)
+    {
+      for (addr = cond->al; addr; addr = tmp)
+	{
+	  tmp = addr->next;
+	  addr->next = spare;
+	  spare = addr;
+      }
+      
+      cond->al = NULL;
+    }
+  
   /* Remove list of addresses of local interfaces */
   for (addr = daemon->interface_addrs; addr; addr = tmp)
     {
@@ -1586,6 +1630,9 @@ void check_servers(int no_loop_check)
       if (serv->sfd)
 	serv->sfd->used = 1;
       
+      if (count == SERVERS_LOGGED)
+	my_syslog(LOG_INFO, _("more servers are defined but not logged"));
+      
       if (++count > SERVERS_LOGGED)
 	continue;
       
@@ -1623,7 +1670,8 @@ void check_servers(int no_loop_check)
 	 continue;
        
        if ((serv->flags & SERV_LITERAL_ADDRESS) &&
-	   !(serv->flags & (SERV_6ADDR | SERV_4ADDR | SERV_ALL_ZEROS)))
+	   !(serv->flags & (SERV_6ADDR | SERV_4ADDR | SERV_ALL_ZEROS)) &&
+	   strlen(serv->domain))
 	 {
 	   count--;
 	   if (++locals <= LOCALS_LOGGED)
@@ -1739,6 +1787,8 @@ int reload_servers(char *fname)
 /* Called when addresses are added or deleted from an interface */
 void newaddress(time_t now)
 {
+  struct dhcp_relay *relay;
+
   (void)now;
   
   if (option_bool(OPT_CLEVERBIND) || option_bool(OPT_LOCAL_SERVICE) ||
@@ -1747,6 +1797,12 @@ void newaddress(time_t now)
   
   if (option_bool(OPT_CLEVERBIND))
     create_bound_listeners(0);
+
+#ifdef HAVE_DHCP
+  /* clear cache of subnet->relay index */
+  for (relay = daemon->relay4; relay; relay = relay->next)
+    relay->iface_index = 0;
+#endif
   
 #ifdef HAVE_DHCP6
   if (daemon->doing_dhcp6 || daemon->relay6 || daemon->doing_ra)
@@ -1757,5 +1813,8 @@ void newaddress(time_t now)
   
   if (daemon->doing_dhcp6)
     lease_find_interfaces(now);
+
+  for (relay = daemon->relay6; relay; relay = relay->next)
+    relay->iface_index = 0;
 #endif
 }

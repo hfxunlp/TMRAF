@@ -1,3 +1,5 @@
+c: Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
+SPDX-License-Identifier: curl
 Long: proto
 Arg: <protocols>
 Help: Enable/disable PROTOCOLS
@@ -8,7 +10,7 @@ Example: --proto =http,https,sftp $URL
 ---
 Tells curl to limit what protocols it may use for transfers. Protocols are
 evaluated left to right, are comma separated, and are each a protocol name or
-\&'all', optionally prefixed by zero or more modifiers. Available modifiers are:
+'all', optionally prefixed by zero or more modifiers. Available modifiers are:
 .RS
 .TP 3
 .B +

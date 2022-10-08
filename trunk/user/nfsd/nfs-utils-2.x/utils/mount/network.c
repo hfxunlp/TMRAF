@@ -97,7 +97,7 @@ static const char *nfs_transport_opttbl[] = {
 };
 
 static const char *nfs_version_opttbl[] = {
-	"v2",
+	"v2", /* no longer supported */
 	"v3",
 	"v4",
 	"vers",
@@ -429,10 +429,6 @@ static int get_socket(struct sockaddr_in *saddr, unsigned int p_prot,
 	if (resvp) {
 		if (bindresvport(so, &laddr) < 0)
 			goto err_bindresvport;
-	} else {
-		cc = bind(so, SAFE_SOCKADDR(&laddr), namelen);
-		if (cc < 0)
-			goto err_bind;
 	}
 	if (type == SOCK_STREAM || (conn && type == SOCK_DGRAM)) {
 		cc = connect_to(so, SAFE_SOCKADDR(saddr), namelen,
@@ -458,17 +454,6 @@ err_bindresvport:
 	if (verbose) {
 		nfs_error(_("%s: Unable to bindresvport %s socket: errno %d"
 				" (%s)\n"),
-			progname, p_prot == IPPROTO_UDP ? _("UDP") : _("TCP"),
-			errno, strerror(errno));
-	}
-	close(so);
-	return RPC_ANYSOCK;
-
-err_bind:
-	rpc_createerr.cf_stat = RPC_SYSTEMERROR;
-	rpc_createerr.cf_error.re_errno = errno;
-	if (verbose) {
-		nfs_error(_("%s: Unable to bind to %s socket: errno %d (%s)\n"),
 			progname, p_prot == IPPROTO_UDP ? _("UDP") : _("TCP"),
 			errno, strerror(errno));
 	}
@@ -1290,7 +1275,7 @@ nfs_nfs_version(char *type, struct mount_options *options, struct nfs_version *v
 	else if (found < 0)
 		return 1;
 	else if (found <= 2 ) {
-		/* v2, v3, v4 */
+		/* v3, v4 */
 		version_val = version_key + 1;
 		version->v_mode = V_SPECIFIC;
 	} else if (found > 2 ) {

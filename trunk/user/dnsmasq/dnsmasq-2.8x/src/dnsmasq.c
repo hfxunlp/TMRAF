@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2022 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,12 @@
 /* Declare static char *compiler_opts  in config.h */
 #define DNSMASQ_COMPILE_OPTS
 
+/* dnsmasq.h has to be included first as it sources config.h */
 #include "dnsmasq.h"
+
+#if defined(HAVE_IDN) || defined(HAVE_LIBIDN2) || defined(LOCALEDIR)
+#include <locale.h>
+#endif
 
 struct daemon *daemon;
 
@@ -34,7 +39,6 @@ static void poll_resolv(int force, int do_reload, time_t now);
 
 int main (int argc, char **argv)
 {
-  int bind_fallback = 0;
   time_t now;
   struct sigaction sigact;
   struct iname *if_tmp;
@@ -59,6 +63,8 @@ int main (int argc, char **argv)
   int did_bind = 0;
   struct server *serv;
   char *netlink_warn;
+#else
+  int bind_fallback = 0;
 #endif 
 #if defined(HAVE_DHCP) || defined(HAVE_DHCP6)
   struct dhcp_context *context;
@@ -68,8 +74,10 @@ int main (int argc, char **argv)
   int tftp_prefix_missing = 0;
 #endif
 
-#ifdef LOCALEDIR
+#if defined(HAVE_IDN) || defined(HAVE_LIBIDN2) || defined(LOCALEDIR)
   setlocale(LC_ALL, "");
+#endif
+#ifdef LOCALEDIR
   bindtextdomain("dnsmasq", LOCALEDIR); 
   textdomain("dnsmasq");
 #endif
@@ -345,6 +353,16 @@ int main (int argc, char **argv)
     }
 #endif
 
+#ifdef HAVE_NFTSET
+  if (daemon->nftsets)
+    {
+      nftset_init();
+#  ifdef HAVE_LINUX_NETWORK
+      need_cap_net_admin = 1;
+#  endif
+    }
+#endif
+
 #if  defined(HAVE_LINUX_NETWORK)
   netlink_warn = netlink_init();
 #elif defined(HAVE_BSD_NETWORK)
@@ -369,28 +387,9 @@ int main (int argc, char **argv)
 #if defined(HAVE_LINUX_NETWORK) && defined(HAVE_DHCP)
       /* after enumerate_interfaces()  */
       bound_device = whichdevice();
-      
-      if (daemon->dhcp)
-	{
-	  if (!daemon->relay4 && bound_device)
-	    {
-	      bindtodevice(bound_device, daemon->dhcpfd);
-	      did_bind = 1;
-	    }
-	  if (daemon->enable_pxe && bound_device)
-	    {
-	      bindtodevice(bound_device, daemon->pxefd);
-	      did_bind = 1;
-	    }
-	}
-#endif
 
-#if defined(HAVE_LINUX_NETWORK) && defined(HAVE_DHCP6)
-      if (daemon->doing_dhcp6 && !daemon->relay6 && bound_device)
-	{
-	  bindtodevice(bound_device, daemon->dhcp6fd);
-	  did_bind = 1;
-	}
+      if ((did_bind = bind_dhcp_devices(bound_device)) & 2)
+	die(_("failed to set SO_BINDTODEVICE on DHCP socket: %s"), NULL, EC_BADNET);	
 #endif
     }
   else 
@@ -716,7 +715,11 @@ int main (int argc, char **argv)
    /* if we are to run scripts, we need to fork a helper before dropping root. */
   daemon->helperfd = -1;
 #ifdef HAVE_SCRIPT 
-  if ((daemon->dhcp || daemon->dhcp6 || option_bool(OPT_TFTP) || option_bool(OPT_SCRIPT_ARP)) && 
+  if ((daemon->dhcp ||
+       daemon->dhcp6 ||
+       daemon->relay6 ||
+       option_bool(OPT_TFTP) ||
+       option_bool(OPT_SCRIPT_ARP)) && 
       (daemon->lease_change_command || daemon->luascript))
       daemon->helperfd = create_helper(pipewrite, err_pipe[1], script_uid, script_gid, max_fd);
 #endif
@@ -920,8 +923,10 @@ int main (int argc, char **argv)
     my_syslog(LOG_WARNING, _("warning: failed to change owner of %s: %s"), 
 	      daemon->log_file, strerror(log_err));
   
+#ifndef HAVE_LINUX_NETWORK
   if (bind_fallback)
     my_syslog(LOG_WARNING, _("setting --bind-interfaces option because of OS limitations"));
+#endif
 
   if (option_bool(OPT_NOWILD))
     warn_bound_listeners();
@@ -1076,6 +1081,17 @@ int main (int argc, char **argv)
 #endif
       
 #ifdef HAVE_DHCP
+#  if defined(HAVE_LINUX_NETWORK)
+      if (bind_dhcp_devices(bound_device) & 2)
+	{
+	  static int warned = 0;
+	  if (!warned)
+	    {
+	      my_syslog(LOG_ERR, _("error binding DHCP socket to device %s"), bound_device);
+	      warned = 1;
+	    }
+	}
+# endif
       if (daemon->dhcp || daemon->relay4)
 	{
 	  poll_listen(daemon->dhcpfd, POLLIN);
@@ -1119,6 +1135,10 @@ int main (int argc, char **argv)
       while (helper_buf_empty() && do_tftp_script_run());
 #    endif
 
+#    ifdef HAVE_DHCP6
+      while (helper_buf_empty() && do_snoop_script_run());
+#    endif
+      
       if (!helper_buf_empty())
 	poll_listen(daemon->helperfd, POLLOUT);
 #else
@@ -1575,7 +1595,7 @@ static void async_event(int pipe, time_t now)
 	  {
 	    /* block in writes until all done */
 	    if ((i = fcntl(daemon->helperfd, F_GETFL)) != -1)
-	      fcntl(daemon->helperfd, F_SETFL, i & ~O_NONBLOCK); 
+	      while(retry_send(fcntl(daemon->helperfd, F_SETFL, i & ~O_NONBLOCK)));
 	    do {
 	      helper_write();
 	    } while (!helper_buf_empty() || do_script_run(now));
@@ -1645,9 +1665,10 @@ static void poll_resolv(int force, int do_reload, time_t now)
     else
       {
 	res->logged = 0;
-	if (force || (statbuf.st_mtime != res->mtime))
+	if (force || (statbuf.st_mtime != res->mtime || statbuf.st_ino != res->ino))
           {
             res->mtime = statbuf.st_mtime;
+	    res->ino = statbuf.st_ino;
 	    if (difftime(statbuf.st_mtime, last_change) > 0.0)
 	      {
 		last_change = statbuf.st_mtime;
@@ -1669,6 +1690,11 @@ static void poll_resolv(int force, int do_reload, time_t now)
 	}
       else 
 	{
+	  /* If we're delaying things, we don't call check_servers(), but 
+	     reload_servers() may have deleted some servers, rendering the server_array
+	     invalid, so just rebuild that here. Once reload_servers() succeeds,
+	     we call check_servers() above, which calls build_server_array itself. */
+	  build_server_array();
 	  latest->mtime = 0;
 	  if (!warned)
 	    {
@@ -1984,7 +2010,7 @@ static void check_dns_listeners(time_t now)
 		 attribute from the listening socket. 
 		 Reset that here. */
 	      if ((flags = fcntl(confd, F_GETFL, 0)) != -1)
-		fcntl(confd, F_SETFL, flags & ~O_NONBLOCK);
+		while(retry_send(fcntl(confd, F_SETFL, flags & ~O_NONBLOCK)));
 	      
 	      buff = tcp_request(confd, now, &tcp_addr, netmask, auth_dns);
 	       

@@ -5,7 +5,7 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
@@ -18,6 +18,8 @@
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
 #
+# SPDX-License-Identifier: curl
+#
 ###########################################################################
 #
 # libcurl Makefile for AmigaOS ...
@@ -26,7 +28,6 @@
 # change the follow to where you have the AmiTCP SDK v4.3 includes:
 
 ATCPSDKI= /GG/netinclude
-
 
 CC = m68k-amigaos-gcc
 CFLAGS = -I$(ATCPSDKI) -m68020-60 -O3 -msoft-float -noixemul -g -I. -I../include -W -Wall

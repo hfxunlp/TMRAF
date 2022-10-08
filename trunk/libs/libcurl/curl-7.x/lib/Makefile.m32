@@ -5,7 +5,7 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1999 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1999 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
@@ -17,6 +17,8 @@
 #
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
+#
+# SPDX-License-Identifier: curl
 #
 #***************************************************************************
 
@@ -106,17 +108,21 @@ endif
 ifeq ($(CURL_RANLIB),)
 CURL_RANLIB := $(CROSSPREFIX)ranlib
 endif
+ifeq ($(CURL_RC),)
+CURL_RC := $(CROSSPREFIX)windres
+endif
+ifeq ($(CURL_STRIP),)
+CURL_STRIP := $(CROSSPREFIX)strip
+endif
 
 CC = $(CURL_CC)
-CFLAGS = $(CURL_CFLAG_EXTRAS) -g -O3 -Wall -W
-CFLAGS += -fno-strict-aliasing
-# comment LDFLAGS below to keep debug info
-LDFLAGS = $(CURL_LDFLAG_EXTRAS) $(CURL_LDFLAG_EXTRAS_DLL) -s
+CFLAGS = -O3 $(CURL_CFLAG_EXTRAS) -W -Wall
+LDFLAGS = $(CURL_LDFLAG_EXTRAS) $(CURL_LDFLAG_EXTRAS_DLL)
 AR = $(CURL_AR)
 RANLIB = $(CURL_RANLIB)
-RC = $(CROSSPREFIX)windres
-RCFLAGS = --include-dir=$(PROOT)/include -DDEBUGBUILD=0 -O coff
-STRIP   = $(CROSSPREFIX)strip -g
+RC = $(CURL_RC)
+RCFLAGS = --include-dir=$(PROOT)/include -O coff $(CURL_RCFLAG_EXTRAS)
+STRIP   = $(CURL_STRIP) -g
 
 # Set environment var ARCH to your architecture to override autodetection.
 ifndef ARCH
@@ -127,14 +133,16 @@ ARCH = w32
 endif
 endif
 
+ifneq ($(ARCH),custom)
 ifeq ($(ARCH),w64)
-CFLAGS  += -m64 -D_AMD64_
+CFLAGS  += -m64
 LDFLAGS += -m64
 RCFLAGS += -F pe-x86-64
 else
 CFLAGS  += -m32
 LDFLAGS += -m32
 RCFLAGS += -F pe-i386
+endif
 endif
 
 # Platform-dependent helper tool macros
@@ -168,79 +176,84 @@ endif
 ########################################################
 ## Nothing more to do below this line!
 
-ifeq ($(findstring -dyn,$(CFG)),-dyn)
+ifneq ($(findstring -dyn,$(CFG)),)
 DYN = 1
 endif
-ifeq ($(findstring -ares,$(CFG)),-ares)
+ifneq ($(findstring -ares,$(CFG)),)
 ARES = 1
 endif
-ifeq ($(findstring -sync,$(CFG)),-sync)
+ifneq ($(findstring -sync,$(CFG)),)
 SYNC = 1
 endif
-ifeq ($(findstring -rtmp,$(CFG)),-rtmp)
+ifneq ($(findstring -rtmp,$(CFG)),)
 RTMP = 1
-SSL = 1
 ZLIB = 1
 endif
-ifeq ($(findstring -ssh2,$(CFG)),-ssh2)
+ifneq ($(findstring -ssh2,$(CFG)),)
 SSH2 = 1
-SSL = 1
 ZLIB = 1
 endif
-ifeq ($(findstring -ssl,$(CFG)),-ssl)
+ifneq ($(findstring -ssl,$(CFG)),)
 SSL = 1
 endif
-ifeq ($(findstring -srp,$(CFG)),-srp)
+ifneq ($(findstring -srp,$(CFG)),)
 SRP = 1
 endif
-ifeq ($(findstring -zlib,$(CFG)),-zlib)
+ifneq ($(findstring -zlib,$(CFG)),)
 ZLIB = 1
 endif
-ifeq ($(findstring -zstd,$(CFG)),-zstd)
+ifneq ($(findstring -zstd,$(CFG)),)
 ZSTD = 1
 endif
-ifeq ($(findstring -brotli,$(CFG)),-brotli)
+ifneq ($(findstring -brotli,$(CFG)),)
 BROTLI = 1
 endif
-ifeq ($(findstring -gsasl,$(CFG)),-gsasl)
+ifneq ($(findstring -gsasl,$(CFG)),)
 GSASL = 1
 endif
-ifeq ($(findstring -idn2,$(CFG)),-idn2)
+ifneq ($(findstring -idn2,$(CFG)),)
 IDN2 = 1
 endif
-ifeq ($(findstring -winidn,$(CFG)),-winidn)
+ifneq ($(findstring -winidn,$(CFG)),)
 WINIDN = 1
 endif
-ifeq ($(findstring -sspi,$(CFG)),-sspi)
+ifneq ($(findstring -sspi,$(CFG)),)
 SSPI = 1
 endif
-ifeq ($(findstring -ldaps,$(CFG)),-ldaps)
+ifneq ($(findstring -ldaps,$(CFG)),)
 LDAPS = 1
 endif
-ifeq ($(findstring -ipv6,$(CFG)),-ipv6)
+ifneq ($(findstring -ipv6,$(CFG)),)
 IPV6 = 1
 endif
-ifeq ($(findstring -winssl,$(CFG)),-winssl)
-WINSSL = 1
+ifneq ($(findstring -schannel,$(CFG))$(findstring -winssl,$(CFG)),)
+SCHANNEL = 1
 SSPI = 1
 endif
-ifeq ($(findstring -nghttp2,$(CFG)),-nghttp2)
+ifneq ($(findstring -nghttp2,$(CFG)),)
 NGHTTP2 = 1
 endif
-ifeq ($(findstring -nghttp3,$(CFG)),-nghttp3)
+ifneq ($(findstring -nghttp3,$(CFG)),)
 NGHTTP3 = 1
 endif
-ifeq ($(findstring -ngtcp2,$(CFG)),-ngtcp2)
+ifneq ($(findstring -ngtcp2,$(CFG)),)
 NGTCP2 = 1
 endif
-ifeq ($(findstring -unicode,$(CFG)),-unicode)
+ifneq ($(findstring -unicode,$(CFG)),)
 UNICODE = 1
+endif
+
+# SSH2 and RTMP require an SSL library; assume OpenSSL if none specified
+ifneq ($(SSH2)$(RTMP),)
+  ifeq ($(SSL)$(SCHANNEL),)
+    SSL = 1
+  endif
 endif
 
 INCLUDES = -I. -I../include
 CFLAGS += -DBUILDING_LIBCURL
 ifdef SSL
-  ifdef WINSSL
+  ifdef SCHANNEL
     CFLAGS += -DCURL_WITH_MULTI_SSL
   endif
 endif
@@ -272,24 +285,31 @@ ifdef SSH2
   INCLUDES += -I"$(LIBSSH2_PATH)/include" -I"$(LIBSSH2_PATH)/win32"
   CFLAGS += -DUSE_LIBSSH2 -DHAVE_LIBSSH2_H
   DLL_LIBS += -L"$(LIBSSH2_PATH)/win32" -lssh2
-  ifdef WINSSL
+  ifdef SCHANNEL
     ifndef DYN
-      DLL_LIBS += -lbcrypt -lcrypt32
+      DLL_LIBS += -lcrypt32
+    endif
+  endif
+endif
+ifdef NGHTTP3
+  INCLUDES += -I"$(NGHTTP3_PATH)/include"
+  CFLAGS += -DUSE_NGHTTP3
+  DLL_LIBS += -L"$(NGHTTP3_PATH)/lib" -lnghttp3
+  ifdef NGTCP2
+    INCLUDES += -I"$(NGTCP2_PATH)/include"
+    CFLAGS += -DUSE_NGTCP2
+    DLL_LIBS += -L"$(NGTCP2_PATH)/lib"
+    ifdef NGTCP2_LIBS
+      DLL_LIBS += $(NGTCP2_LIBS)
+    else
+      DLL_LIBS += -lngtcp2
+      ifdef SSL
+        DLL_LIBS += -lngtcp2_crypto_openssl
+      endif
     endif
   endif
 endif
 ifdef SSL
-  ifdef NGHTTP3
-    INCLUDES += -I"$(NGHTTP3_PATH)/include"
-    CFLAGS += -DUSE_NGHTTP3
-    DLL_LIBS += -L"$(NGHTTP3_PATH)/lib" -lnghttp3
-    ifdef NGTCP2
-      INCLUDES += -I"$(NGTCP2_PATH)/include"
-      CFLAGS += -DUSE_NGTCP2
-      DLL_LIBS += -L"$(NGTCP2_PATH)/lib" -lngtcp2 -lngtcp2_crypto_openssl
-    endif
-  endif
-
   ifndef OPENSSL_INCLUDE
     ifeq "$(wildcard $(OPENSSL_PATH)/outinc)" "$(OPENSSL_PATH)/outinc"
       OPENSSL_INCLUDE = $(OPENSSL_PATH)/outinc
@@ -299,7 +319,7 @@ ifdef SSL
     endif
   endif
   ifneq "$(wildcard $(OPENSSL_INCLUDE)/openssl/opensslv.h)" "$(OPENSSL_INCLUDE)/openssl/opensslv.h"
-  $(error Invalid path to OpenSSL package: $(OPENSSL_PATH))
+    $(error Invalid path to OpenSSL package: $(OPENSSL_PATH))
   endif
   ifndef OPENSSL_LIBPATH
     ifeq "$(wildcard $(OPENSSL_PATH)/out)" "$(OPENSSL_PATH)/out"
@@ -315,8 +335,7 @@ ifdef SSL
     OPENSSL_LIBS += -lgdi32 -lcrypt32
   endif
   INCLUDES += -I"$(OPENSSL_INCLUDE)"
-  CFLAGS += -DUSE_OPENSSL -DHAVE_OPENSSL_PKCS12_H \
-            -DOPENSSL_NO_KRB5
+  CFLAGS += -DUSE_OPENSSL
   DLL_LIBS += -L"$(OPENSSL_LIBPATH)" $(OPENSSL_LIBS)
   ifdef SRP
     ifeq "$(wildcard $(OPENSSL_INCLUDE)/openssl/srp.h)" "$(OPENSSL_INCLUDE)/openssl/srp.h"
@@ -324,7 +343,7 @@ ifdef SSL
     endif
   endif
 endif
-ifdef WINSSL
+ifdef SCHANNEL
   CFLAGS += -DUSE_SCHANNEL
   DLL_LIBS += -lcrypt32
 endif
@@ -376,7 +395,7 @@ ifdef SPNEGO
   CFLAGS += -DHAVE_SPNEGO
 endif
 ifdef IPV6
-  CFLAGS += -DENABLE_IPV6 -D_WIN32_WINNT=0x0501
+  CFLAGS += -DENABLE_IPV6
 endif
 ifdef LDAPS
   CFLAGS += -DHAVE_LDAP_SSL
@@ -396,7 +415,7 @@ ifndef USE_LDAP_OPENLDAP
   DLL_LIBS += -lwldap32
 endif
 endif
-DLL_LIBS += -lws2_32
+DLL_LIBS += -lws2_32 -lbcrypt
 
 # Makefile.inc provides the CSOURCES and HHEADERS defines
 include Makefile.inc
@@ -413,7 +432,6 @@ libcurl_a_OBJECTS := $(patsubst %.c,%.o,$(strip $(CSOURCES)))
 libcurl_a_DEPENDENCIES := $(strip $(CSOURCES) $(HHEADERS))
 
 RESOURCE = libcurl.res
-
 
 all: $(libcurl_a_LIBRARY) $(libcurl_dll_LIBRARY)
 
@@ -442,6 +460,3 @@ clean:
 
 distclean vclean: clean
 	@$(call DEL, $(libcurl_a_LIBRARY) $(libcurl_dll_LIBRARY) $(libcurl_dll_LIBRARY:.dll=.def) $(libcurl_dll_a_LIBRARY))
-
-$(LIBCARES_PATH)/libcares.a:
-	$(MAKE) -C $(LIBCARES_PATH) -f Makefile.m32

@@ -32,7 +32,7 @@ OPENSSL_CIPHERS += no-ec
 endif
 
 all: config_test
-	python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/libs/libssl O2 O3
+	python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/libs/libssl O2 O3
 	$(MAKE) -C $(SRC_NAME)
 
 config_test:
@@ -61,7 +61,7 @@ clean:
 	rm -f config_done
 
 install:
-	python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/libs/libssl O2 O3
+	python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/libs/libssl O2 O3
 	$(MAKE) -C $(SRC_NAME) install DESTDIR="$(STAGEDIR)"
 	rm -f $(DESTDIR)/lib/libssl.a
 	rm -f $(DESTDIR)/lib/libcrypto.a

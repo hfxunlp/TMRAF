@@ -3,7 +3,7 @@ SRC_NAME=ipset-6.x
 THISDIR = $(shell pwd)
 
 all: config_test
-	python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/ipset O2 O3
+	python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/ipset O2 O3
 	$(MAKE) -C $(SRC_NAME)
 	$(MAKE) modules -C $(SRC_NAME)
 

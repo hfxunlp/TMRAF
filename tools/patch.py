@@ -20,7 +20,7 @@ def patch_decoder(fname):
 
 	patched = 0
 
-	prules = ((None, "/media/Storage/workspace/router/", "/home/anoliu/router/",),)
+	prules = ((None, "/home/anoliu/router/", "/home/ano/router/",),)
 
 	cache = []
 	prev_emp = False

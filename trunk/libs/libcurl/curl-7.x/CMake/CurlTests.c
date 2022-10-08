@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -17,6 +17,8 @@
  *
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
+ *
+ * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
 #ifdef TIME_WITH_SYS_TIME
@@ -56,7 +58,7 @@ return 0;
 # define PLATFORM_AIX_V3
 #endif
 /* */
-#if defined(PLATFORM_SUNOS4) || defined(PLATFORM_AIX_V3) || defined(__BEOS__)
+#if defined(PLATFORM_SUNOS4) || defined(PLATFORM_AIX_V3)
 #error "O_NONBLOCK does not work on this platform"
 #endif
 
@@ -229,10 +231,6 @@ int main () { ; return 0; }
 #  include <windows.h>
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
-#  else
-#    ifdef HAVE_WINSOCK_H
-#      include <winsock.h>
-#    endif
 #  endif
 #endif
 
@@ -258,10 +256,6 @@ main ()
 #  include <windows.h>
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
-#  else
-#    ifdef HAVE_WINSOCK_H
-#      include <winsock.h>
-#    endif
 #  endif
 #endif
 
@@ -285,10 +279,6 @@ main ()
 #  include <windows.h>
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
-#  else
-#    ifdef HAVE_WINSOCK_H
-#      include <winsock.h>
-#    endif
 #  endif
 #endif
 
@@ -313,10 +303,6 @@ main ()
 #  include <windows.h>
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
-#  else
-#    ifdef HAVE_WINSOCK_H
-#      include <winsock.h>
-#    endif
 #  endif
 #endif
 
@@ -403,10 +389,6 @@ main ()
 #  include <windows.h>
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
-#  else
-#    ifdef HAVE_WINSOCK_H
-#      include <winsock.h>
-#    endif
 #  endif
 #endif
 /* includes start */
@@ -531,6 +513,53 @@ main() {
   int res2 = gcc_vmacro2(1, 2);
   (void)res3;
   (void)res2;
+  return 0;
+}
+#endif
+#ifdef HAVE_ATOMIC
+/* includes start */
+#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+#ifdef HAVE_STDATOMIC_H
+#  include <stdatomic.h>
+#endif
+/* includes end */
+
+int
+main() {
+  _Atomic int i = 1;
+  i = 0;  // Force an atomic-write operation.
+  return i;
+}
+#endif
+#ifdef HAVE_WIN32_WINNT
+/* includes start */
+#ifdef WIN32
+/*
+ * Don't include unneeded stuff in Windows headers to avoid compiler
+ * warnings and macro clashes.
+ * Make sure to define this macro before including any Windows headers.
+ */
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOGDI
+#    define NOGDI
+#  endif
+#  include "../lib/setup-win32.h"
+#endif
+/* includes end */
+
+#define enquote(x) #x
+#define expand(x) enquote(x)
+#pragma message("_WIN32_WINNT=" expand(_WIN32_WINNT))
+
+int
+main() {
   return 0;
 }
 #endif

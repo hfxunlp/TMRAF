@@ -34,4 +34,3 @@ LDADD			= ../../support/nfs/libnfs.la \
 man8_MANS		= nfsref.man
 
 MAINTAINERCLEANFILES	= Makefile.in
-

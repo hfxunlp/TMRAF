@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2021 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2022 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1420,21 +1420,18 @@ size_t dhcp_reply(struct dhcp_context *context, char *iface_name, int int_index,
 		  /* DNSMASQ_REQUESTED_OPTIONS */
 		  if ((opt = option_find(mess, sz, OPTION_REQUESTED_OPTIONS, 1)))
 		    {
-		      int len = option_len(opt);
+		      int i, len = option_len(opt);
 		      unsigned char *rop = option_ptr(opt, 0);
-		      char *q = daemon->namebuff;
-		      int i;
+		      
 		      for (i = 0; i < len; i++)
-		        {
-		          q += snprintf(q, MAXDNAME - (q - daemon->namebuff), "%d%s", rop[i], i + 1 == len ? "" : ",");
-		        }
-		      lease_add_extradata(lease, (unsigned char *)daemon->namebuff, (q - daemon->namebuff), 0); 
+			lease_add_extradata(lease, (unsigned char *)daemon->namebuff,
+					    sprintf(daemon->namebuff, "%u", rop[i]), (i + 1) == len ? 0 : ',');
 		    }
 		  else
-		    {
-		      add_extradata_opt(lease, NULL);
-		    }
-
+		    lease_add_extradata(lease, NULL, 0, 0);
+		  
+		  add_extradata_opt(lease, option_find(mess, sz, OPTION_MUD_URL_V4, 1));
+		  
 		  /* space-concat tag set */
 		  if (!tagif_netid)
 		    add_extradata_opt(lease, NULL);
@@ -2200,8 +2197,9 @@ static int pxe_uefi_workaround(int pxe_arch, struct dhcp_netid *netid, struct dh
       inet_ntop(AF_INET, &mess->siaddr, (char *)mess->sname, INET_ADDRSTRLEN);
     }
   
-  snprintf((char *)mess->file, sizeof(mess->file), 
-	   strchr(found->basename, '.') ? "%s" : "%s.0", found->basename);
+  if (found->basename)
+    snprintf((char *)mess->file, sizeof(mess->file), 
+	     strchr(found->basename, '.') ? "%s" : "%s.0", found->basename);
   
   return 1;
 }

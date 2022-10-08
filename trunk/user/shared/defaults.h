@@ -28,9 +28,9 @@
 #define SYS_USER_NOBODY		"nobody"
 #define SYS_GROUP_NOGROUP	"nogroup"
 
-#define DEF_LAN_ADDR		"192.168.1.1"
-#define DEF_LAN_DHCP_BEG	"192.168.1.2"
-#define DEF_LAN_DHCP_END	"192.168.1.244"
+#define DEF_LAN_ADDR		"192.168.0.1"
+#define DEF_LAN_DHCP_BEG	"192.168.0.2"
+#define DEF_LAN_DHCP_END	"192.168.0.254"
 #define DEF_LAN_MASK		"255.255.255.0"
 
 #define DEF_WLAN_2G_CC		"CN"
@@ -45,8 +45,8 @@
 #define DEF_ROOT_PASSWORD	"admin"
 #define DEF_SMB_WORKGROUP	"WORKGROUP"
 #define DEF_TIMEZONE		"CST-8"
-#define DEF_NTP_SERVER0		"pool.ntp.org"
-#define DEF_NTP_SERVER1		"time.nist.gov"
+#define DEF_NTP_SERVER0		"ntp.aliyun.com"
+#define DEF_NTP_SERVER1		"ntp.tencent.com"
 #define DEF_HTTPS_CIPH_LIST	"DH+AESGCM:DH+AES256:DH+AES:DH+3DES:RSA+AES:RSA+3DES:!ADH:!MD5:!DSS"
 
 #endif

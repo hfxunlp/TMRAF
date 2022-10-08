@@ -1,4 +1,4 @@
-."@(#)nfsmount.conf.5"
+.\" @(#)nfsmount.conf.5"
 .TH NFSMOUNT.CONF 5 "16 December 2020"
 .SH NAME
 nfsmount.conf - Configuration file for NFS mounts

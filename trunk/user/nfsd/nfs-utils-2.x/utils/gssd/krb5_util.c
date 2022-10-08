@@ -673,8 +673,8 @@ get_full_hostname(const char *inhost, char *outhost, int outhostlen)
 	    *c = tolower(*c);
 
 	if (get_verbosity() && strcmp(inhost, outhost))
-		printerr(1, "%s(0x%0lx): inhost '%s' different than outhost'%s'\n", 
-			inhost, outhost);
+		printerr(1, "%s(0x%0lx): inhost '%s' different than outhost '%s'\n", 
+			 __func__, tid, inhost, outhost);
 
 	retval = 0;
 out:
@@ -1129,6 +1129,12 @@ query_krb5_ccache(const char* cred_cache, char **ret_princname,
 			    *str = '\0';
 			    *ret_princname = strdup(princstring);
 			    *ret_realm = strdup(str+1);
+			    if (!*ret_princname || !*ret_realm) {
+				    free(*ret_princname);
+				    free(*ret_realm);
+				    *ret_princname = NULL;
+				    *ret_realm = NULL;
+			    }
 		    }
 		    k5_free_unparsed_name(context, princstring);
 		}
@@ -1350,15 +1356,19 @@ gssd_get_krb5_machine_cred_list(char ***list)
 		if (retval)
 			continue;
 		if (i + 1 > listsize) {
+			char **tmplist;
 			listsize += listinc;
-			l = (char **)
+			tmplist = (char **)
 				realloc(l, listsize * sizeof(char *));
-			if (l == NULL) {
+			if (tmplist == NULL) {
+				gssd_free_krb5_machine_cred_list(l);
 				retval = ENOMEM;
 				goto out_lock;
 			}
+			l = tmplist;
 		}
 		if ((l[i++] = strdup(ple->ccname)) == NULL) {
+			gssd_free_krb5_machine_cred_list(l);
 			retval = ENOMEM;
 			goto out_lock;
 		}

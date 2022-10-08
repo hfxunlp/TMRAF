@@ -1,6 +1,5 @@
 ## Process this file with automake to produce Makefile.in
 
-
 GENFILES_CLNT	= mount_clnt.c
 GENFILES_XDR	= mount_xdr.c
 GENFILES_H	= mount.h

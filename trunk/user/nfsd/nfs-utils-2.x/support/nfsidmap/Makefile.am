@@ -7,7 +7,7 @@ endif
 if ENABLE_LDAP
 UMICH_LDAP_LIB = umich_ldap.la
 else
-UMICH_LDAP_LIB = 
+UMICH_LDAP_LIB =
 endif
 if ENABLE_GUMS
 GUMS_MAPPING_LIB = gums.la

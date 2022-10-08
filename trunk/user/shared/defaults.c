@@ -69,9 +69,9 @@ struct nvram_pair router_defaults[] = {
 	{ "wan_netmask", "0.0.0.0" },		/* WAN netmask */
 	{ "wan_gateway", "0.0.0.0" },		/* WAN gateway */
 	{ "wan_dnsenable_x", "1" },
-	{ "wan_dns1_x", "" },
-	{ "wan_dns2_x", "" },
-	{ "wan_dns3_x", "" },
+	{ "wan_dns1_x", "223.6.6.6" },
+	{ "wan_dns2_x", "180.76.76.76" },
+	{ "wan_dns3_x", "119.29.29.29" },
 	{ "wan_hostname", "" },			/* WAN hostname */
 	{ "wan_vci", "" },			/* WAN vendor class identifier (OPT-60) */
 	{ "wan_ttl_fix", "0" },
@@ -403,9 +403,9 @@ struct nvram_pair router_defaults[] = {
 	{ "ip6_wan_gate", "" },
 
 	{ "ip6_dns_auto", "0" },
-	{ "ip6_dns1", "" },
-	{ "ip6_dns2", "" },
-	{ "ip6_dns3", "" },
+	{ "ip6_dns1", "2400:3200:baba::1" },
+	{ "ip6_dns2", "2400:da00::6666" },
+	{ "ip6_dns3", "2402:4e00::" },
 
 	{ "ip6_lan_auto", "0" },
 	{ "ip6_lan_addr", "" },
@@ -471,7 +471,7 @@ struct nvram_pair router_defaults[] = {
 	{ "dhcp_start", DEF_LAN_DHCP_BEG },	/* First assignable DHCP address */
 	{ "dhcp_end", DEF_LAN_DHCP_END },	/* Last assignable DHCP address */
 	{ "dhcp_enable_x", "1" },
-	{ "dhcp_lease", "86400" },
+	{ "dhcp_lease", "604800" },
 	{ "dhcp_gateway_x", "" },
 	{ "dhcp_dns1_x", "" },
 	{ "dhcp_dns2_x", "" },

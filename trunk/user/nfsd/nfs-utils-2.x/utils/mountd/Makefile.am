@@ -45,7 +45,6 @@ uninstall-hook:
 	    rm -f $(RPCPREFIX)$(KPREFIX)$$p$(EXEEXT) ;\
 	  done)
 
-
 # XXX This makes some assumptions about what automake does.
 # XXX But there is no install-man-hook or install-man-local.
 install-man: install-man8 install-man-links
@@ -65,4 +64,3 @@ uninstall-man-links:
 	    inst=`echo $$m | sed -e 's/man$$/8/'`; \
 	    rm -f $(RPCPREFIX)$$inst ; \
 	  done)
-

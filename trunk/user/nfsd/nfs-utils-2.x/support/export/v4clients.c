@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/inotify.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include "export.h"
 
@@ -23,6 +24,11 @@ static int clients_fd = -1;
 
 void v4clients_init(void)
 {
+	struct stat sb;
+
+	if (!stat("/proc/fs/nfsd/clients", &sb) == 0 ||
+	    !S_ISDIR(sb.st_mode))
+		return;
 	if (clients_fd >= 0)
 		return;
 	clients_fd = inotify_init1(IN_NONBLOCK);

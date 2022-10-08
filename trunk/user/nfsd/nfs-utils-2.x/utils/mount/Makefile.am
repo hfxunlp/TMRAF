@@ -1,8 +1,10 @@
 ## Process this file with automake to produce Makefile.in
 
-# These binaries go in /sbin (not /usr/sbin), and that cannot be
-# overridden at config time.
-sbindir = /sbin
+# These binaries go in /sbin (not /usr/sbin), unless CONFIG_SBIN_OVERRIDE
+# is disabled as may be appropriate when /sbin is a symlink.
+# Note that we don't use "if CONFIG_SBIN_OVERRIDE" as that
+# causes autotools to notice the override and disable it.
+@CONFIG_SBIN_OVERRIDE_TRUE@sbindir = /sbin
 
 man8_MANS	= mount.nfs.man umount.nfs.man
 man5_MANS	= nfs.man
@@ -52,7 +54,6 @@ uninstall-hook:
 	(cd $(DESTDIR)$(sbindir) && \
 	    rm -f mount.nfs4 umount.nfs umount.nfs4)
 
-
 install-man-links:
 	(cd $(DESTDIR)$(man8dir) && \
 	  for m in $(man8_MANS) $(dist_man8_MANS) $(nodist_man8_MANS); do \
@@ -76,4 +77,3 @@ uninstall-man-links:
 	    inst=`echo $$m | sed -e 's/man$$/5/'`; \
 	    rm -f $$inst ; \
 	  done)
-

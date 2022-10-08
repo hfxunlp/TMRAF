@@ -45,7 +45,7 @@
 #include "cld.h"
 #include "cld-internal.h"
 #include "sqlite.h"
-#include "../mount/version.h"
+#include "version.h"
 #include "conffile.h"
 #include "legacy.h"
 

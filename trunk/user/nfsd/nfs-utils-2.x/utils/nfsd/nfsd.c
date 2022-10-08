@@ -226,7 +226,6 @@ main(int argc, char **argv)
 				}
 				/* FALLTHRU */
 			case 3:
-			case 2:
 				NFSCTL_VERUNSET(versbits, c);
 				break;
 			default:
@@ -251,7 +250,6 @@ main(int argc, char **argv)
 					minorvers = minorversset = minormask;
 				/* FALLTHRU */
 			case 3:
-			case 2:
 				NFSCTL_VERSET(versbits, c);
 				break;
 			default:

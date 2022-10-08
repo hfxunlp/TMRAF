@@ -6,8 +6,8 @@ ROMFS_DIR = $(ROOTDIR)/romfs
 
 include $(ROOTDIR)/user/shared/boards.mk
 
-PROJECT_HOME_URL="https:\/\/github.com\/anoidgit\/TMRAF\/releases"
-LABEL_COPYRIGHT_TEXT="© 2020 ASUS, MediaTek \& OpenSource Community"
+PROJECT_HOME_URL="https:\/\/github.com\/hfxunlp\/TMRAF\/releases"
+LABEL_COPYRIGHT_TEXT="© 2022 ASUS, MediaTek \& OpenSource Community"
 
 BOARD_PATTERN=s/ZVMODELVZ/$(CONFIG_FIRMWARE_PRODUCT_ID)/g
 COPYR_PATTERN=s/ZVCOPYRVZ/$(LABEL_COPYRIGHT_TEXT)/g

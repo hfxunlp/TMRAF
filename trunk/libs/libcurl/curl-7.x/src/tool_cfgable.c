@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -17,6 +17,8 @@
  *
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
+ *
+ * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
 #include "tool_setup.h"
@@ -34,25 +36,20 @@ void config_init(struct OperationConfig *config)
   config->use_httpget = FALSE;
   config->create_dirs = FALSE;
   config->maxredirs = DEFAULT_MAXREDIRS;
-  config->proto = CURLPROTO_ALL;
   config->proto_present = FALSE;
-  config->proto_redir = CURLPROTO_ALL & /* All except FILE, SCP and SMB */
-    ~(CURLPROTO_FILE | CURLPROTO_SCP | CURLPROTO_SMB |
-      CURLPROTO_SMBS);
   config->proto_redir_present = FALSE;
   config->proto_default = NULL;
   config->tcp_nodelay = TRUE; /* enabled by default */
   config->happy_eyeballs_timeout_ms = CURL_HET_DEFAULT;
   config->http09_allowed = FALSE;
   config->ftp_skip_ip = TRUE;
+  config->file_clobber_mode = CLOBBER_DEFAULT;
 }
 
 static void free_config_fields(struct OperationConfig *config)
 {
   struct getout *urlnode;
 
-  Curl_safefree(config->random_file);
-  Curl_safefree(config->egd_file);
   Curl_safefree(config->useragent);
   Curl_safefree(config->altsvc);
   Curl_safefree(config->hsts);
@@ -131,6 +128,7 @@ static void free_config_fields(struct OperationConfig *config)
   Curl_safefree(config->proxy_key_passwd);
   Curl_safefree(config->pubkey);
   Curl_safefree(config->hostpubmd5);
+  Curl_safefree(config->hostpubsha256);
   Curl_safefree(config->engine);
   Curl_safefree(config->etag_save_file);
   Curl_safefree(config->etag_compare_file);
@@ -170,6 +168,8 @@ static void free_config_fields(struct OperationConfig *config)
   Curl_safefree(config->ftp_alternative_to_user);
 
   Curl_safefree(config->aws_sigv4);
+  Curl_safefree(config->proto_str);
+  Curl_safefree(config->proto_redir_str);
 }
 
 void config_free(struct OperationConfig *config)

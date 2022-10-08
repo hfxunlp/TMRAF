@@ -15,15 +15,15 @@ INSTALL= install
 MFLAGS=$(if $(CONFIG_IPV6),HAVE_INET6=y,)
 
 all:
-	cd chat; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
-	cd pppd/plugins; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
-	cd pppd; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
-	cd pppstats; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
-	cd pppdump; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd chat; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd pppd/plugins; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd pppd; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd pppstats; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd pppdump; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
 
 romfs:
-	cd pppd; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
-	cd pppd/plugins; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd pppd; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
+	cd pppd/plugins; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) all
 	$(ROMFSINST) -d pppd/pppd /usr/sbin/pppd
 	$(ROMFSINST) -d pppd/plugins/rp-pppoe/rp-pppoe.so /usr/lib/pppd/rp-pppoe.so
 	$(ROMFSINST) -d pppd/plugins/pppol2tp/pppol2tp.so /usr/lib/pppd/pppol2tp.so
@@ -32,11 +32,11 @@ romfs:
 install: $(BINDIR) $(MANDIR)/man8 install-progs install-devel
 
 install-progs:
-	cd chat; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
-	cd pppd/plugins; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
-	cd pppd; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
-	cd pppstats; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
-	cd pppdump; python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
+	cd chat; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
+	cd pppd/plugins; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
+	cd pppd; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
+	cd pppstats; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
+	cd pppdump; python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/pppd O2 O3; $(MAKE) $(MFLAGS) install
 
 install-etcppp: $(ETCDIR) $(ETCDIR)/options $(ETCDIR)/pap-secrets \
 	$(ETCDIR)/chap-secrets

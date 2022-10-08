@@ -12,7 +12,7 @@ created by Sun Microsystems in 1984. NFS was developed
 to allow file sharing between systems residing
 on a local area network.
 Depending on kernel configuration, the Linux NFS client may
-support NFS versions 2, 3, 4.0, 4.1, or 4.2.
+support NFS versions 3, 4.0, 4.1, or 4.2.
 .P
 The
 .BR mount (8)
@@ -416,6 +416,19 @@ Note that the
 option may also be used by some pNFS drivers to decide how many
 connections to set up to the data servers.
 .TP 1.5i
+.BR max_connect= n
+While
+.BR nconnect
+option sets a limit on the number of connections that can be established
+to a given server IP,
+.BR max_connect
+option allows the user to specify maximum number of connections to different
+server IPs that belong to the same NFSv4.1+ server (session trunkable
+connections) up to a limit of 16. When client discovers that it established
+a client ID to an already existing server, instead of dropping the newly
+created network transport, the client will add this new connection to the
+list of available transports for that RPC client.
+.TP 1.5i
 .BR rdirplus " / " nordirplus
 Selects whether to use NFS v3 or v4 READDIRPLUS requests.
 If this option is not specified, the NFS client uses READDIRPLUS requests
@@ -555,6 +568,13 @@ using the FS-Cache facility. See cachefilesd(8)
 and <kernel_source>/Documentation/filesystems/caching
 for detail on how to configure the FS-Cache facility.
 Default value is nofsc.
+.TP 1.5i
+.B sloppy
+The
+.B sloppy
+option is an alternative to specifying
+.BR mount.nfs " -s " option.
+
 .SS "Options for NFS versions 2 and 3 only"
 Use these options, along with the options in the above subsection,
 for NFS versions 2 and 3 only.
@@ -934,11 +954,6 @@ file. See
 .BR nfsmount.conf(5)
 for details.
 .SH EXAMPLES
-To mount an export using NFS version 2,
-use the
-.B nfs
-file system type and specify the
-.B nfsvers=2
 mount option.
 To mount using NFS version 3,
 use the
@@ -963,13 +978,6 @@ reasonable defaults for NFS behavior.
 .nf
 .ta 8n +16n +6n +6n +30n
 	server:/export	/mnt	nfs	defaults	0 0
-.fi
-.P
-Here is an example from an /etc/fstab file for an NFS version 2 mount over UDP.
-.P
-.nf
-.ta 8n +16n +6n +6n +30n
-	server:/export	/mnt	nfs	nfsvers=2,proto=udp	0 0
 .fi
 .P
 This example shows how to mount using NFS version 4 over TCP
@@ -1064,7 +1072,7 @@ and
 can safely be allowed to default to the largest values supported by
 both client and server, independent of the network's MTU size.
 .SS "Using the mountproto mount option"
-This section applies only to NFS version 2 and version 3 mounts
+This section applies only to NFS version 3 mounts
 since NFS version 4 does not use a separate protocol for mount
 requests.
 .P
@@ -1467,7 +1475,7 @@ the use of the
 mount option.
 .SS "Using file locks with NFS"
 The Network Lock Manager protocol is a separate sideband protocol
-used to manage file locks in NFS version 2 and version 3.
+used to manage file locks in NFS version 3.
 To support lock recovery after a client or server reboot,
 a second sideband protocol --
 known as the Network Status Manager protocol --
@@ -1886,8 +1894,6 @@ CONFIG_NFS_V4, CONFIG_NFS_V4_1, and CONFIG_NFS_V4_2.
 RFC 768 for the UDP specification.
 .br
 RFC 793 for the TCP specification.
-.br
-RFC 1094 for the NFS version 2 specification.
 .br
 RFC 1813 for the NFS version 3 specification.
 .br

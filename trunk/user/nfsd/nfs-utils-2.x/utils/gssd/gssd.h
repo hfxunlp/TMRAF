@@ -39,7 +39,7 @@
 #include <pthread.h>
 
 #ifndef GSSD_PIPEFS_DIR
-#define GSSD_PIPEFS_DIR		"/var/lib/nfs/rpc_pipefs"
+#define GSSD_PIPEFS_DIR		NFS_STATEDIR "/rpc_pipefs"
 #endif
 #define DNOTIFY_SIGNAL		(SIGRTMIN + 3)
 

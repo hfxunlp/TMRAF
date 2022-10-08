@@ -8,7 +8,7 @@ CFLAGS  += -ffunction-sections -fdata-sections
 LDFLAGS += -Wl,--gc-sections
 
 all: config_test
-	python3 /home/anoliu/router/TMRAF/tools/redirectOptimize.py /home/anoliu/router/rt-n56u/trunk/user/accel-pptpd O2 O3
+	python3 /home/ano/router/TMRAF/tools/redirectOptimize.py /home/ano/router/rt-n56u/trunk/user/accel-pptpd O2 O3
 	$(MAKE) -C $(SRC_NAME)
 
 config_test:

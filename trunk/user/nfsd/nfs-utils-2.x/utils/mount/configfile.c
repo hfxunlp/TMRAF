@@ -71,7 +71,7 @@ struct mnt_alias {
 int mnt_alias_sz = (sizeof(mnt_alias_tab)/sizeof(mnt_alias_tab[0]));
 
 static const char *version_keys[] = {
-	"v2", "v3", "v4", "vers", "nfsvers", "minorversion", NULL
+	"v3", "v4", "vers", "nfsvers", "minorversion", NULL
 };
 
 static int strict;

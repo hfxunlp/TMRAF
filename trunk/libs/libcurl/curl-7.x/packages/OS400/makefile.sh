@@ -6,7 +6,7 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
@@ -19,6 +19,8 @@
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
 #
+# SPDX-License-Identifier: curl
+#
 ###########################################################################
 #
 #       curl compilation script for the OS/400.
@@ -30,14 +32,12 @@ SCRIPTDIR=`dirname "${0}"`
 . "${SCRIPTDIR}/initscript.sh"
 cd "${TOPDIR}"
 
-
 #       Create the OS/400 library if it does not exist.
 
 if action_needed "${LIBIFSNAME}"
 then    CMD="CRTLIB LIB(${TARGETLIB}) TEXT('curl: multiprotocol support API')"
         system "${CMD}"
 fi
-
 
 #       Create the DOCS source file if it does not exist.
 
@@ -46,7 +46,6 @@ then    CMD="CRTSRCPF FILE(${TARGETLIB}/DOCS) RCDLEN(240)"
         CMD="${CMD} CCSID(${TGTCCSID}) TEXT('Documentation texts')"
         system "${CMD}"
 fi
-
 
 #       Copy some documentation files if needed.
 
@@ -59,13 +58,14 @@ do      MEMBER="`basename \"${TEXT}\" .OS400`"
         MEMBER="`basename \"${MEMBER}\" .md`"
         MEMBER="${LIBIFSNAME}/DOCS.FILE/`db2_name \"${MEMBER}\"`.MBR"
 
+        [ -e "${TEXT}" ] || continue
+
         if action_needed "${MEMBER}" "${TEXT}"
         then    CMD="CPY OBJ('${TEXT}') TOOBJ('${MEMBER}') TOCCSID(${TGTCCSID})"
                 CMD="${CMD} DTAFMT(*TEXT) REPLACE(*YES)"
                 system "${CMD}"
         fi
 done
-
 
 #       Build in each directory.
 

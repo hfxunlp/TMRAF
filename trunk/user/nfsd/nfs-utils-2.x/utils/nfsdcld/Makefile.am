@@ -12,4 +12,3 @@ nfsdcld_LDADD = ../../support/nfs/libnfs.la $(LIBEVENT) $(LIBSQLITE) $(LIBCAP)
 noinst_HEADERS	= sqlite.h cld-internal.h legacy.h
 
 MAINTAINERCLEANFILES = Makefile.in
-

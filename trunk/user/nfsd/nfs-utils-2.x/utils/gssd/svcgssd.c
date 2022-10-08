@@ -211,9 +211,6 @@ main(int argc, char *argv[])
 	rpc_verbosity = conf_get_num("svcgssd", "RPC-Verbosity", rpc_verbosity);
 	idmap_verbosity = conf_get_num("svcgssd", "IDMAP-Verbosity", idmap_verbosity);
 
-	/* We don't need the config anymore */
-	conf_cleanup();
-
 	while ((opt = getopt(argc, argv, "fivrnp:")) != -1) {
 		switch (opt) {
 			case 'f':
@@ -298,9 +295,9 @@ main(int argc, char *argv[])
 				(const gss_OID)GSS_C_NT_HOSTBASED_SERVICE);
 		if (status == FALSE) {
 			printerr(0, "unable to obtain root (machine) credentials\n");
-			printerr(0, "do you have a keytab entry for "
-				"nfs/<your.host>@<YOUR.REALM> in "
-				"/etc/krb5.keytab?\n");
+			printerr(0, "do you have a keytab entry for %s in"
+				"/etc/krb5.keytab?\n",
+				principal ? principal : "nfs/<your.host>@<YOUR.REALM>");
 			exit(1);
 		}
 	} else {
@@ -327,6 +324,9 @@ main(int argc, char *argv[])
 	}
 
 	daemon_ready();
+
+	/* We don't need the config anymore */
+	conf_cleanup();
 
 	nfs4_init_name_mapping(NULL); /* XXX: should only do this once */
 
