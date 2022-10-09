@@ -147,3 +147,4 @@ fuzz-xpath: xpath$(EXEEXT) seed/xpath.stamp
 	    -max_len=10000 \
 	    -timeout=20 \
 	    corpus/xpath seed/xpath
+
